@@ -237,19 +237,18 @@ impl LocalDb {
             .map_err(|e| format!("[MIGRATION_013_ERROR] {e}"))?;
         }
 
-        let has_service_name_column: bool =
-            sqlx::query_scalar("SELECT COUNT(*) > 0 FROM pragma_table_info('connections') WHERE name = 'service_name'")
-                .fetch_one(&pool)
-                .await
-                .map_err(|e| format!("[MIGRATION_014_CHECK_ERROR] {e}"))?;
+        let has_service_name_column: bool = sqlx::query_scalar(
+            "SELECT COUNT(*) > 0 FROM pragma_table_info('connections') WHERE name = 'service_name'",
+        )
+        .fetch_one(&pool)
+        .await
+        .map_err(|e| format!("[MIGRATION_014_CHECK_ERROR] {e}"))?;
 
         if !has_service_name_column {
-            sqlx::query(include_str!(
-                "../../migrations/014_add_sentinel_fields.sql"
-            ))
-            .execute(&pool)
-            .await
-            .map_err(|e| format!("[MIGRATION_014_ERROR] {e}"))?;
+            sqlx::query(include_str!("../../migrations/014_add_sentinel_fields.sql"))
+                .execute(&pool)
+                .await
+                .map_err(|e| format!("[MIGRATION_014_ERROR] {e}"))?;
         }
 
         Ok(Self {
@@ -458,7 +457,7 @@ impl LocalDb {
                 auth_mode, api_key_id, NULL as api_key_secret, NULL as api_key_encoded, cloud_id,
                 created_at, updated_at
                FROM connections
-               ORDER BY created_at DESC, id DESC"#,
+               ORDER BY created_at ASC, id ASC"#,
         )
         .fetch_all(&self.pool)
         .await
@@ -1351,7 +1350,7 @@ mod tests {
         let before_update = db.list_connections().await.unwrap();
         assert_eq!(
             before_update.iter().map(|conn| conn.id).collect::<Vec<_>>(),
-            vec![second.id, first.id]
+            vec![first.id, second.id]
         );
 
         db.update_connection(
@@ -1384,9 +1383,9 @@ mod tests {
         let after_update = db.list_connections().await.unwrap();
         assert_eq!(
             after_update.iter().map(|conn| conn.id).collect::<Vec<_>>(),
-            vec![second.id, first.id]
+            vec![first.id, second.id]
         );
-        assert_eq!(after_update[1].name, "first-renamed");
+        assert_eq!(after_update[0].name, "first-renamed");
     }
 
     #[tokio::test]
