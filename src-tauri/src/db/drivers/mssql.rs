@@ -1255,10 +1255,32 @@ impl DatabaseDriver for MssqlDriver {
             " ORDER BY (SELECT NULL)".to_string()
         };
 
-        let sql = format!(
-            "SELECT * FROM {}{}{} OFFSET {} ROWS FETCH NEXT {} ROWS ONLY",
-            qualified, where_clause, order_clause, offset, safe_limit
-        );
+        let sql = if offset == 0 {
+            // Simple TOP query for first page (compatible with all SQL Server versions)
+            format!(
+                "SELECT TOP ({}) * FROM {}{}{}",
+                safe_limit, qualified, where_clause, order_clause
+            )
+        } else {
+            // ROW_NUMBER() based pagination for subsequent pages (compatible with SQL Server 2005+)
+            // Extract the ORDER BY columns for ROW_NUMBER() OVER clause
+            let row_num_order = if order_clause.trim().is_empty() || order_clause.contains("SELECT NULL") {
+                "(SELECT NULL)".to_string()
+            } else {
+                // Remove "ORDER BY" prefix to get just the columns
+                order_clause.strip_prefix(" ORDER BY").unwrap_or(&order_clause).trim().to_string()
+            };
+
+            format!(
+                "SELECT * FROM ( \
+                    SELECT TOP ({}) *, ROW_NUMBER() OVER (ORDER BY {}) AS __row_num \
+                    FROM {}{} \
+                ) AS __paged \
+                WHERE __row_num > {} \
+                ORDER BY __row_num",
+                offset + safe_limit, row_num_order, qualified, where_clause, offset
+            )
+        };
         let (data, _columns) = self.fetch_query_result_json(&sql).await?;
 
         Ok(TableDataResponse {
