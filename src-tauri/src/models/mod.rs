@@ -33,6 +33,7 @@ pub struct Connection {
     pub api_key_secret: Option<String>,
     pub api_key_encoded: Option<String>,
     pub cloud_id: Option<String>,
+    pub auth_source: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -286,6 +287,7 @@ pub struct ConnectionForm {
     pub api_key_secret: Option<String>,
     pub api_key_encoded: Option<String>,
     pub cloud_id: Option<String>,
+    pub auth_source: Option<String>,
 }
 
 impl fmt::Debug for ConnectionForm {
@@ -329,6 +331,7 @@ impl fmt::Debug for ConnectionForm {
             .field("api_key_secret", &api_key_secret)
             .field("api_key_encoded", &api_key_encoded)
             .field("cloud_id", &self.cloud_id)
+            .field("auth_source", &self.auth_source)
             .finish()
     }
 }

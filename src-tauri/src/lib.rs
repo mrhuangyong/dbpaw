@@ -253,6 +253,10 @@ pub fn run() {
             commands::elasticsearch::elasticsearch_export_documents,
             commands::elasticsearch::elasticsearch_import_documents,
             commands::elasticsearch::elasticsearch_execute_raw,
+            commands::mongodb::mongodb_test_connection,
+            commands::mongodb::mongodb_test_connection_ephemeral,
+            commands::mongodb::mongodb_list_databases,
+            commands::mongodb::mongodb_list_collections,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");

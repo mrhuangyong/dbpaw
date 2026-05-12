@@ -425,6 +425,29 @@ export function ConnectionDialog({
                       </div>
                     ) : null}
 
+                    {form.driver === "mongodb" ? (
+                      <div className="space-y-3 rounded-md border bg-muted/20 p-3">
+                        <div className="grid gap-2">
+                          <Label htmlFor="authSource">
+                            {t("connection.dialog.fields.authSource")}
+                          </Label>
+                          <Input
+                            id="authSource"
+                            placeholder={t(
+                              "connection.dialog.placeholders.authSource",
+                            )}
+                            value={form.authSource || ""}
+                            onChange={(e) =>
+                              setForm((current) => ({
+                                ...current,
+                                authSource: e.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+
                     {(formCapabilities.showHost || formCapabilities.showPort) &&
                       !hasElasticCloudId && (
                         <div className="grid gap-2 sm:grid-cols-2">

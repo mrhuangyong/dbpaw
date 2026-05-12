@@ -54,6 +54,11 @@ export interface TreeCallbacks {
     ctx: LeafContext,
     action: "refresh" | "open" | "close" | "delete",
   ) => void;
+
+  // MongoDB 专用
+  onCreateCollection?: (ctx: DatabaseContext) => void;
+  onCollectionSelect?: (ctx: LeafContext) => void;
+  onCollectionAction?: (ctx: LeafContext, action: "drop" | "rename") => void;
 }
 
 // ============ Tree Config ============
@@ -65,7 +70,7 @@ export interface TreeConfig {
   supportsSchemaNode: boolean;
 
   // 叶子节点
-  leafNodeType: "table" | "key" | "index";
+  leafNodeType: "table" | "key" | "index" | "collection";
   leafNodeIcon: () => ReactNode;
 
   // 数据库节点

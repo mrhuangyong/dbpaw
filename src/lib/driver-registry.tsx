@@ -11,11 +11,13 @@ import {
   siApachedoris,
   siTidb,
   siElasticsearch,
+  siMongodb,
 } from "simple-icons";
 import type { TreeConfig, TreeCallbacks } from "./tree-adapters/types.tsx";
 import { createSqlTreeConfig } from "./tree-adapters/sql-adapter.tsx";
 import { createRedisTreeConfig } from "./tree-adapters/redis-adapter.tsx";
 import { createElasticsearchTreeConfig } from "./tree-adapters/elasticsearch-adapter.tsx";
+import { createMongodbTreeConfig } from "./tree-adapters/mongodb-adapter.tsx";
 
 export type ImportDriverCapability =
   | "supported"
@@ -36,6 +38,7 @@ const DRIVER_IDS = [
   "oracle",
   "redis",
   "elasticsearch",
+  "mongodb",
 ] as const;
 
 export type Driver = (typeof DRIVER_IDS)[number];
@@ -274,6 +277,21 @@ export const DRIVER_REGISTRY: DriverConfig[] = [
     importCapability: "unsupported",
     icon: () => renderSimpleIcon(siElasticsearch),
     treeConfig: (callbacks) => createElasticsearchTreeConfig(callbacks),
+  },
+  {
+    id: "mongodb",
+    label: "MongoDB",
+    kind: "document",
+    defaultPort: 27017,
+    isFileBased: false,
+    isMysqlFamily: false,
+    supportsSSLCA: false,
+    supportsSchemaBrowsing: false,
+    supportsCreateDatabase: false,
+    supportsRoutines: false,
+    importCapability: "unsupported",
+    icon: () => renderSimpleIcon(siMongodb),
+    treeConfig: (callbacks) => createMongodbTreeConfig(callbacks),
   },
 ];
 

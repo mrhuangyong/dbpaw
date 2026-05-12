@@ -31,7 +31,8 @@ describe("DRIVER_REGISTRY", () => {
     expect(ids).toContain("oracle");
     expect(ids).toContain("redis");
     expect(ids).toContain("elasticsearch");
-    expect(DRIVER_REGISTRY).toHaveLength(13);
+    expect(ids).toContain("mongodb");
+    expect(DRIVER_REGISTRY).toHaveLength(14);
   });
 
   test("has no duplicate IDs", () => {

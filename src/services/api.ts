@@ -370,6 +370,24 @@ export interface ElasticsearchBulkImportResult {
   timeTakenMs: number;
 }
 
+export interface MongodbConnectionInfo {
+  version?: string;
+  nodeCount?: number;
+}
+
+export interface MongodbDatabaseInfo {
+  name: string;
+  sizeOnDisk?: number;
+  empty?: boolean;
+}
+
+export interface MongodbCollectionInfo {
+  name: string;
+  database: string;
+  documentCount?: number;
+  size?: number;
+}
+
 export type SqlExecutionSource =
   | "sql_editor"
   | "table_view_save"
@@ -439,6 +457,7 @@ export interface ConnectionForm {
   apiKeySecret?: string;
   apiKeyEncoded?: string;
   cloudId?: string;
+  authSource?: string;
 }
 
 export interface SavedConnection {
@@ -471,6 +490,7 @@ export interface SavedConnection {
   apiKeySecret?: string | null;
   apiKeyEncoded?: string | null;
   cloudId?: string | null;
+  authSource?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1536,6 +1556,19 @@ export const api = {
       path: string;
       body?: string;
     }) => invoke<ElasticsearchRawResponse>("elasticsearch_execute_raw", params),
+  },
+  mongodb: {
+    testConnection: (id: number) =>
+      invoke<MongodbConnectionInfo>("mongodb_test_connection", { id }),
+    testConnectionEphemeral: (form: ConnectionForm) =>
+      invoke<TestConnectionResult>("mongodb_test_connection_ephemeral", { form }),
+    listDatabases: (id: number) =>
+      invoke<MongodbDatabaseInfo[]>("mongodb_list_databases", { id }),
+    listCollections: (id: number, database: string) =>
+      invoke<MongodbCollectionInfo[]>("mongodb_list_collections", {
+        id,
+        database,
+      }),
   },
   queries: {
     list: () => invoke<SavedQuery[]>("get_saved_queries"),

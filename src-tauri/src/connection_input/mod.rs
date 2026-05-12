@@ -170,13 +170,14 @@ pub fn normalize_connection_form(mut form: ConnectionForm) -> Result<ConnectionF
     form.cloud_id = trim_to_option(form.cloud_id);
     form.service_name = trim_to_option(form.service_name);
     form.sentinel_password = trim_preserve_empty(form.sentinel_password);
+    form.auth_source = trim_to_option(form.auth_source);
 
     validate_port_range("port", form.port)?;
     validate_port_range("ssh port", form.ssh_port)?;
 
     let driver = form.driver.to_ascii_lowercase();
     form.driver = driver.clone();
-    if crate::db::drivers::is_mysql_family_driver(&driver) || driver == "elasticsearch" {
+    if crate::db::drivers::is_mysql_family_driver(&driver) || driver == "elasticsearch" || driver == "mongodb" {
         if let Some(host) = form.host.clone() {
             let (normalized_host, normalized_port) = parse_host_embedded_port(&host, form.port);
             form.host = Some(normalized_host);
@@ -208,6 +209,10 @@ pub fn normalize_connection_form(mut form: ConnectionForm) -> Result<ConnectionF
     } else if driver == "elasticsearch" {
         if form.host.is_none() && form.cloud_id.is_none() {
             return Err("[VALIDATION_ERROR] host or cloudId cannot be empty".to_string());
+        }
+    } else if driver == "mongodb" {
+        if form.host.is_none() {
+            return Err("[VALIDATION_ERROR] host cannot be empty".to_string());
         }
     } else if form.host.is_none() {
         return Err("[VALIDATION_ERROR] host cannot be empty".to_string());

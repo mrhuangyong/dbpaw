@@ -1281,6 +1281,7 @@ export async function mockCreateConnection(form: ConnectionForm): Promise<any> {
     apiKeySecret: form.apiKeySecret ?? null,
     apiKeyEncoded: form.apiKeyEncoded ?? null,
     cloudId: form.cloudId ?? null,
+    authSource: form.authSource ?? null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -1349,6 +1350,7 @@ export async function mockUpdateConnection(
     apiKeySecret: nextApiKeySecret,
     apiKeyEncoded: nextApiKeyEncoded,
     cloudId: form.cloudId ?? existing.cloudId ?? null,
+    authSource: form.authSource ?? existing.authSource ?? null,
     updatedAt: new Date().toISOString(),
   };
 

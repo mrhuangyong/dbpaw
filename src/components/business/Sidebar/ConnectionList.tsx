@@ -176,6 +176,7 @@ interface Connection {
   apiKeySecret?: string;
   apiKeyEncoded?: string;
   cloudId?: string;
+  authSource?: string;
   databases: DatabaseInfo[];
   isConnected: boolean;
   connectState: "idle" | "connecting" | "success" | "error";
@@ -413,6 +414,7 @@ const buildFormFromConnection = (
     | "apiKeySecret"
     | "apiKeyEncoded"
     | "cloudId"
+    | "authSource"
   >,
   overrides: Partial<ConnectionForm> = {},
 ): ConnectionForm =>
@@ -445,6 +447,7 @@ const buildFormFromConnection = (
     apiKeySecret: "",
     apiKeyEncoded: "",
     cloudId: connection.cloudId || "",
+    authSource: connection.authSource || "",
     ...overrides,
   });
 
@@ -480,6 +483,7 @@ const mapSavedConnection = (
   apiKeySecret: c.apiKeySecret || "",
   apiKeyEncoded: c.apiKeyEncoded || "",
   cloudId: c.cloudId || "",
+  authSource: c.authSource || "",
   isConnected: false,
   connectState: "idle",
   connectError: undefined,
@@ -669,6 +673,8 @@ export function ConnectionList({
     defaultCreateDatabaseForm,
   );
   const [showElasticsearchSystemIndices, setShowElasticsearchSystemIndices] =
+    useState(false);
+  const [showMongoSystemCollections, setShowMongoSystemCollections] =
     useState(false);
   const [createEsIndexConnectionId, setCreateEsIndexConnectionId] = useState<
     string | null
@@ -1435,8 +1441,9 @@ export function ConnectionList({
     connection: Connection,
   ): DatasourceTreeAdapter => {
     const config = getTreeConfig(connection.type, treeCallbacks);
-    const driverKind = connection.type === "redis" ? "kv" : 
-                       connection.type === "elasticsearch" ? "search" : "sql";
+    const driverKind = connection.type === "redis" ? "kv" :
+                       connection.type === "elasticsearch" ? "search" :
+                       connection.type === "mongodb" ? "document" : "sql";
 
     // Build context for callbacks
     const buildContext = () => ({
@@ -1473,6 +1480,11 @@ export function ConnectionList({
             (db) => db.name,
           );
         }
+        if (connection.type === "mongodb") {
+          return (await api.mongodb.listDatabases(Number(connection.id))).map(
+            (db) => db.name,
+          );
+        }
         return api.metadata.listDatabasesById(Number(connection.id));
       },
       loadDatabaseChildren: async (databaseName: string) => {
@@ -1497,6 +1509,25 @@ export function ConnectionList({
               columns: [],
               isSystem: index.isSystem,
               indexStatus: index.status,
+            }));
+        }
+        if (connection.type === "mongodb") {
+          const collections = await api.mongodb.listCollections(
+            Number(connection.id),
+            databaseName,
+          );
+          return collections
+            .filter(
+              (col) =>
+                showMongoSystemCollections ||
+                !col.name.startsWith("system.") ||
+                searchTerm.trim().startsWith("system"),
+            )
+            .map((col) => ({
+              name: col.name,
+              schema: databaseName,
+              columns: [],
+              isSystem: col.name.startsWith("system."),
             }));
         }
         return fetchSqlTablesAsTableInfo(connection.id, databaseName);
@@ -1614,6 +1645,26 @@ export function ConnectionList({
                 }
               />
               Show system indices
+            </label>
+          );
+        }
+
+        // MongoDB footer with system collections toggle
+        if (connection.type === "mongodb") {
+          return (
+            <label
+              key="mongodb-system-collections"
+              className="flex items-center gap-2 px-3 py-1 text-xs text-muted-foreground"
+              style={{ paddingLeft: `${(level + 1) * 12 + 8}px` }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Checkbox
+                checked={showMongoSystemCollections}
+                onCheckedChange={(checked) =>
+                  setShowMongoSystemCollections(checked === true)
+                }
+              />
+              Show system collections
             </label>
           );
         }
@@ -2001,6 +2052,23 @@ export function ConnectionList({
     // Re-apply the client-side system-index filter for already opened ES trees.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showElasticsearchSystemIndices]);
+
+  useEffect(() => {
+    connections
+      .filter(
+        (connection) =>
+          connection.type === "mongodb" &&
+          connection.connectState === "success",
+      )
+      .forEach((connection) => {
+        connection.databases.forEach((db) => {
+          if (expandedDatabases.has(`${connection.id}-${db.name}`)) {
+            void handleRefreshDatabaseTables(connection.id, db.name);
+          }
+        });
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showMongoSystemCollections]);
 
   const toggleDatabase = (key: string) => {
     const newExpanded = new Set(expandedDatabases);

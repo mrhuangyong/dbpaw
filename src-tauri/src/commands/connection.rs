@@ -414,6 +414,9 @@ pub async fn test_connection_ephemeral(
     } else if form.driver == "elasticsearch" {
         let client = crate::datasources::elasticsearch::ElasticsearchClient::connect(&form)?;
         client.test_connection().await?;
+    } else if form.driver == "mongodb" {
+        let client = crate::datasources::mongodb::MongodbClient::connect(&form).await?;
+        client.test_connection().await?;
     } else {
         let driver = crate::db::drivers::connect(&form).await?;
         driver.test_connection().await.map_err(|e| e.to_string())?;

@@ -251,6 +251,20 @@ impl LocalDb {
                 .map_err(|e| format!("[MIGRATION_014_ERROR] {e}"))?;
         }
 
+        let has_auth_source_column: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM pragma_table_info('connections') WHERE name='auth_source')",
+        )
+        .fetch_one(&pool)
+        .await
+        .map_err(|e| format!("[MIGRATION_015_CHECK_ERROR] {e}"))?;
+
+        if !has_auth_source_column {
+            sqlx::query(include_str!("../../migrations/015_add_mongodb_auth_source.sql"))
+                .execute(&pool)
+                .await
+                .map_err(|e| format!("[MIGRATION_015_ERROR] {e}"))?;
+        }
+
         Ok(Self {
             pool,
             ai_master_key,
@@ -356,8 +370,8 @@ impl LocalDb {
         }
 
         let id = sqlx::query_scalar::<_, i64>(
-            "INSERT INTO connections (uuid, type, name, host, port, database, username, password, ssl, ssl_mode, ssl_ca_cert, file_path, ssh_enabled, ssh_host, ssh_port, ssh_username, ssh_password, ssh_key_path, mode, seed_nodes, sentinels, connect_timeout_ms, service_name, sentinel_password, auth_mode, api_key_id, api_key_secret, api_key_encoded, cloud_id)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id"
+            "INSERT INTO connections (uuid, type, name, host, port, database, username, password, ssl, ssl_mode, ssl_ca_cert, file_path, ssh_enabled, ssh_host, ssh_port, ssh_username, ssh_password, ssh_key_path, mode, seed_nodes, sentinels, connect_timeout_ms, service_name, sentinel_password, auth_mode, api_key_id, api_key_secret, api_key_encoded, cloud_id, auth_source)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id"
         )
         .bind(&uuid)
         .bind(&form.driver)
@@ -388,6 +402,7 @@ impl LocalDb {
         .bind(form.api_key_secret)
         .bind(form.api_key_encoded)
         .bind(form.cloud_id)
+        .bind(form.auth_source)
         .fetch_one(&self.pool)
         .await
         .map_err(|e| format!("[INSERT_ERROR] {e}"))?;
@@ -401,7 +416,7 @@ impl LocalDb {
         form: ConnectionForm,
     ) -> Result<Connection, String> {
         sqlx::query(
-            "UPDATE connections SET name = COALESCE(NULLIF(?, ''), name), type = ?, host = ?, port = ?, database = ?, username = ?, password = COALESCE(NULLIF(?, ''), password), ssl = ?, ssl_mode = ?, ssl_ca_cert = ?, file_path = ?, ssh_enabled = ?, ssh_host = ?, ssh_port = ?, ssh_username = ?, ssh_password = ?, ssh_key_path = ?, mode = ?, seed_nodes = ?, sentinels = ?, connect_timeout_ms = ?, service_name = ?, sentinel_password = COALESCE(NULLIF(?, ''), sentinel_password), auth_mode = ?, api_key_id = ?, api_key_secret = COALESCE(NULLIF(?, ''), api_key_secret), api_key_encoded = COALESCE(NULLIF(?, ''), api_key_encoded), cloud_id = ?, updated_at = datetime('now') WHERE id = ?"
+            "UPDATE connections SET name = COALESCE(NULLIF(?, ''), name), type = ?, host = ?, port = ?, database = ?, username = ?, password = COALESCE(NULLIF(?, ''), password), ssl = ?, ssl_mode = ?, ssl_ca_cert = ?, file_path = ?, ssh_enabled = ?, ssh_host = ?, ssh_port = ?, ssh_username = ?, ssh_password = ?, ssh_key_path = ?, mode = ?, seed_nodes = ?, sentinels = ?, connect_timeout_ms = ?, service_name = ?, sentinel_password = COALESCE(NULLIF(?, ''), sentinel_password), auth_mode = ?, api_key_id = ?, api_key_secret = COALESCE(NULLIF(?, ''), api_key_secret), api_key_encoded = COALESCE(NULLIF(?, ''), api_key_encoded), cloud_id = ?, auth_source = ?, updated_at = datetime('now') WHERE id = ?"
         )
         .bind(form.name)
         .bind(&form.driver)
@@ -431,6 +446,7 @@ impl LocalDb {
         .bind(form.api_key_secret)
         .bind(form.api_key_encoded)
         .bind(form.cloud_id)
+        .bind(form.auth_source)
         .bind(id)
         .execute(&self.pool)
         .await
@@ -454,7 +470,7 @@ impl LocalDb {
                 id, uuid, name, type as db_type, host, port, database, username, ssl, ssl_mode, ssl_ca_cert, file_path,
                 ssh_enabled, ssh_host, ssh_port, ssh_username, ssh_password, ssh_key_path,
                 mode, seed_nodes, sentinels, connect_timeout_ms, service_name, NULL as sentinel_password,
-                auth_mode, api_key_id, NULL as api_key_secret, NULL as api_key_encoded, cloud_id,
+                auth_mode, api_key_id, NULL as api_key_secret, NULL as api_key_encoded, cloud_id, auth_source,
                 created_at, updated_at
                FROM connections
                ORDER BY created_at ASC, id ASC"#,
@@ -494,6 +510,7 @@ impl LocalDb {
                 api_key_secret: row.try_get("api_key_secret").ok(),
                 api_key_encoded: row.try_get("api_key_encoded").ok(),
                 cloud_id: row.try_get("cloud_id").ok(),
+                auth_source: row.try_get("auth_source").ok(),
                 created_at: row.try_get("created_at").unwrap_or_default(),
                 updated_at: row.try_get("updated_at").unwrap_or_default(),
             })
@@ -506,7 +523,7 @@ impl LocalDb {
                 id, uuid, name, type as db_type, host, port, database, username, ssl, ssl_mode, ssl_ca_cert, file_path,
                 ssh_enabled, ssh_host, ssh_port, ssh_username, ssh_password, ssh_key_path,
                 mode, seed_nodes, sentinels, connect_timeout_ms, service_name, NULL as sentinel_password,
-                auth_mode, api_key_id, NULL as api_key_secret, NULL as api_key_encoded, cloud_id,
+                auth_mode, api_key_id, NULL as api_key_secret, NULL as api_key_encoded, cloud_id, auth_source,
                 created_at, updated_at
                FROM connections
                WHERE id = ?"#,
@@ -546,6 +563,7 @@ impl LocalDb {
             api_key_secret: row.try_get("api_key_secret").ok(),
             api_key_encoded: row.try_get("api_key_encoded").ok(),
             cloud_id: row.try_get("cloud_id").ok(),
+            auth_source: row.try_get("auth_source").ok(),
             created_at: row.try_get("created_at").unwrap_or_default(),
             updated_at: row.try_get("updated_at").unwrap_or_default(),
         })
@@ -553,7 +571,7 @@ impl LocalDb {
 
     pub async fn get_connection_form_by_id(&self, id: i64) -> Result<ConnectionForm, String> {
         let row = sqlx::query(
-            "SELECT type as db_type, name, host, port, database, username, password, ssl, ssl_mode, ssl_ca_cert, file_path, ssh_enabled, ssh_host, ssh_port, ssh_username, ssh_password, ssh_key_path, mode, seed_nodes, sentinels, connect_timeout_ms, service_name, sentinel_password, auth_mode, api_key_id, api_key_secret, api_key_encoded, cloud_id FROM connections WHERE id = ?"
+            "SELECT type as db_type, name, host, port, database, username, password, ssl, ssl_mode, ssl_ca_cert, file_path, ssh_enabled, ssh_host, ssh_port, ssh_username, ssh_password, ssh_key_path, mode, seed_nodes, sentinels, connect_timeout_ms, service_name, sentinel_password, auth_mode, api_key_id, api_key_secret, api_key_encoded, cloud_id, auth_source FROM connections WHERE id = ?"
         )
         .bind(id)
         .fetch_one(&self.pool)
@@ -591,6 +609,7 @@ impl LocalDb {
             api_key_secret: row.try_get("api_key_secret").ok(),
             api_key_encoded: row.try_get("api_key_encoded").ok(),
             cloud_id: row.try_get("cloud_id").ok(),
+            auth_source: row.try_get("auth_source").ok(),
         })
     }
 
@@ -1106,6 +1125,7 @@ mod tests {
             include_str!("../../migrations/012_add_redis_connection_options.sql"),
             include_str!("../../migrations/013_add_elasticsearch_connection_options.sql"),
             include_str!("../../migrations/014_add_sentinel_fields.sql"),
+            include_str!("../../migrations/015_add_mongodb_auth_source.sql"),
         ] {
             sqlx::query(migration)
                 .execute(&pool)

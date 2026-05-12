@@ -21,6 +21,7 @@ fn default_target_port(driver: &str) -> i64 {
         "clickhouse" => 9000,
         "redis" => 6379,
         "elasticsearch" => 9200,
+        "mongodb" => 27017,
         "sqlite" => 0,
         _ => 5432, // postgres and unknown drivers
     }
@@ -363,6 +364,7 @@ mod tests {
         assert_eq!(default_target_port("clickhouse"), 9000);
         assert_eq!(default_target_port("redis"), 6379);
         assert_eq!(default_target_port("elasticsearch"), 9200);
+        assert_eq!(default_target_port("mongodb"), 27017);
     }
 
     #[test]

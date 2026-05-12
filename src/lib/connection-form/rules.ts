@@ -125,6 +125,7 @@ export const buildConnectionFormDefaults = (
   apiKeySecret: "",
   apiKeyEncoded: "",
   cloudId: "",
+  authSource: driver === "mongodb" ? "" : undefined,
   ...overrides,
 });
 
@@ -296,6 +297,7 @@ export const normalizeConnectionFormInput = (
     apiKeySecret: normalizeTextValue(raw.apiKeySecret, false),
     apiKeyEncoded: normalizeTextValue(raw.apiKeyEncoded, false),
     cloudId: normalizeTextValue(raw.cloudId),
+    authSource: driver === "mongodb" ? normalizeTextValue(raw.authSource) : undefined,
     filePath: normalizeTextValue(raw.filePath),
     sshHost: normalizeTextValue(raw.sshHost),
     sshPort: normalizePortNumber(raw.sshPort),
