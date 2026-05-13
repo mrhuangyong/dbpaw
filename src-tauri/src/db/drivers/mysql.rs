@@ -1457,6 +1457,7 @@ impl DatabaseDriver for MysqlDriver {
             time_taken_ms: duration.as_millis() as i64,
             success: true,
             error: None,
+            result_sets: None,
         })
     }
 

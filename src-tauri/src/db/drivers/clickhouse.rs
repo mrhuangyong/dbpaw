@@ -338,6 +338,7 @@ fn raw_text_to_query_result(body: String, time_taken_ms: i64) -> QueryResult {
             time_taken_ms,
             success: true,
             error: None,
+            result_sets: None,
         };
     }
 
@@ -364,6 +365,7 @@ fn raw_text_to_query_result(body: String, time_taken_ms: i64) -> QueryResult {
         time_taken_ms,
         success: true,
         error: None,
+        result_sets: None,
     }
 }
 
@@ -926,6 +928,7 @@ impl DatabaseDriver for ClickHouseDriver {
                 time_taken_ms: duration.as_millis() as i64,
                 success: true,
                 error: None,
+                result_sets: None,
             });
         }
 
@@ -963,6 +966,7 @@ impl DatabaseDriver for ClickHouseDriver {
             time_taken_ms: duration.as_millis() as i64,
             success: true,
             error: None,
+            result_sets: None,
         })
     }
 

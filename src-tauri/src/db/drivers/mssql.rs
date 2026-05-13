@@ -1947,6 +1947,7 @@ impl DatabaseDriver for MssqlDriver {
                 time_taken_ms: start.elapsed().as_millis() as i64,
                 success: true,
                 error: None,
+                result_sets: None,
             });
         }
 
@@ -1964,6 +1965,7 @@ impl DatabaseDriver for MssqlDriver {
             time_taken_ms: start.elapsed().as_millis() as i64,
             success: true,
             error: None,
+            result_sets: None,
         })
     }
 

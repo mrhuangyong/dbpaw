@@ -35,6 +35,14 @@ export interface QueryColumn {
   type: string;
 }
 
+export interface SingleResultSet {
+  data: any[];
+  rowCount: number;
+  columns: QueryColumn[];
+  index: number;
+  statement: string;
+}
+
 export interface QueryResult {
   data: any[];
   rowCount: number;
@@ -42,6 +50,7 @@ export interface QueryResult {
   timeTakenMs: number;
   success: boolean;
   error?: string;
+  resultSets?: SingleResultSet[];
 }
 
 export interface RedisDatabaseInfo {

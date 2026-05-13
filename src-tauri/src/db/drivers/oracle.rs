@@ -678,6 +678,7 @@ impl DatabaseDriver for OracleDriver {
                     time_taken_ms: start.elapsed().as_millis() as i64,
                     success: true,
                     error: None,
+                    result_sets: None,
                 })
             } else {
                 // DML or DDL — use Statement API to get affected-row count
@@ -698,6 +699,7 @@ impl DatabaseDriver for OracleDriver {
                     time_taken_ms: start.elapsed().as_millis() as i64,
                     success: true,
                     error: None,
+                    result_sets: None,
                 })
             }
         })

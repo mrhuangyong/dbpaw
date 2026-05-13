@@ -236,6 +236,16 @@ pub struct QueryColumn {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct SingleResultSet {
+    pub data: Vec<serde_json::Value>,
+    pub row_count: i64,
+    pub columns: Vec<QueryColumn>,
+    pub index: u32,
+    pub statement: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct QueryResult {
     pub data: Vec<serde_json::Value>,
     pub row_count: i64,
@@ -243,6 +253,8 @@ pub struct QueryResult {
     pub time_taken_ms: i64,
     pub success: bool,
     pub error: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub result_sets: Option<Vec<SingleResultSet>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

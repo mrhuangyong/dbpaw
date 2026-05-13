@@ -707,6 +707,7 @@ impl DatabaseDriver for DuckdbDriver {
                     time_taken_ms: start.elapsed().as_millis() as i64,
                     success: true,
                     error: None,
+                    result_sets: None,
                 });
             }
 
@@ -726,6 +727,7 @@ impl DatabaseDriver for DuckdbDriver {
                 time_taken_ms: start.elapsed().as_millis() as i64,
                 success: true,
                 error: None,
+                result_sets: None,
             })
         })
         .await
