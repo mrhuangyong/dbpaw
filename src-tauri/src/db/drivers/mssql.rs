@@ -1870,14 +1870,16 @@ impl DatabaseDriver for MssqlDriver {
         };
         let (mut data, mut columns) = self.fetch_query_result_json(&sql).await?;
 
-        // Filter out the internal __row_num column so it's not exposed to users
+        // Filter out the internal __row_num column so it's not exposed to users.
+        // Unconditionally remove from data: in the FOR JSON path, `columns` only
+        // contains a single JSON text column and won't match "__row_num".
+        for row in &mut data {
+            if let serde_json::Value::Object(obj) = row {
+                obj.remove("__row_num");
+            }
+        }
         if let Some(idx) = columns.iter().position(|c| c.name == "__row_num") {
             columns.remove(idx);
-            for row in &mut data {
-                if let serde_json::Value::Object(obj) = row {
-                    obj.remove("__row_num");
-                }
-            }
         }
 
         Ok(TableDataResponse {
