@@ -1177,6 +1177,207 @@ async fn test_mssql_view_can_be_listed_and_queried() {
 
 #[tokio::test]
 #[ignore]
+async fn test_mssql_column_type_length_comments_and_index_unique() {
+    let form = shared_mssql_form();
+    let driver: MssqlDriver = connect_with_retry(|| MssqlDriver::connect(&form)).await;
+
+    let table_name = "dbpaw_mssql_meta_detail_probe";
+    let qualified = format!("[dbo].[{}]", table_name);
+    let _ = driver
+        .execute_query(format!(
+            "IF OBJECT_ID(N'dbo.{}', N'U') IS NOT NULL DROP TABLE {};",
+            table_name, qualified
+        ))
+        .await;
+
+    // Create table with various column types that have length/precision
+    driver
+        .execute_query(format!(
+            "CREATE TABLE {} (\
+                id INT PRIMARY KEY, \
+                name NVARCHAR(50) NOT NULL, \
+                bio VARCHAR(MAX), \
+                score DECIMAL(10,2), \
+                tag CHAR(8), \
+                created_at DATETIME2(3), \
+                payload VARBINARY(256), \
+                flag BIT\
+            )",
+            qualified
+        ))
+        .await
+        .expect("create table failed");
+
+    // Add column comments via sys.extended_properties
+    let comment_sqls = vec![
+        format!(
+            "EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'Primary key', @level0type=N'SCHEMA', @level0name=N'dbo', @level1type=N'TABLE', @level1name=N'{}', @level2type=N'COLUMN', @level2name=N'id'",
+            table_name
+        ),
+        format!(
+            "EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'User display name', @level0type=N'SCHEMA', @level0name=N'dbo', @level1type=N'TABLE', @level1name=N'{}', @level2type=N'COLUMN', @level2name=N'name'",
+            table_name
+        ),
+        format!(
+            "EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'Biography text', @level0type=N'SCHEMA', @level0name=N'dbo', @level1type=N'TABLE', @level1name=N'{}', @level2type=N'COLUMN', @level2name=N'bio'",
+            table_name
+        ),
+    ];
+    for sql in comment_sqls {
+        driver
+            .execute_query(sql)
+            .await
+            .expect("add extended property failed");
+    }
+
+    // Create a unique index
+    driver
+        .execute_query(format!(
+            "CREATE UNIQUE INDEX uq_{}_name ON {} (name)",
+            table_name, qualified
+        ))
+        .await
+        .expect("create unique index failed");
+
+    // Also create a non-unique index
+    driver
+        .execute_query(format!(
+            "CREATE INDEX idx_{}_score ON {} (score)",
+            table_name, qualified
+        ))
+        .await
+        .expect("create non-unique index failed");
+
+    // --- Verify column types include length/precision ---
+    let structure = driver
+        .get_table_structure("dbo".to_string(), table_name.to_string())
+        .await
+        .expect("get_table_structure failed");
+
+    let id_col = structure
+        .columns
+        .iter()
+        .find(|c| c.name == "id")
+        .expect("id column should exist");
+    assert_eq!(id_col.r#type, "int", "id type should be 'int'");
+
+    let name_col = structure
+        .columns
+        .iter()
+        .find(|c| c.name == "name")
+        .expect("name column should exist");
+    assert_eq!(
+        name_col.r#type, "nvarchar(50)",
+        "name type should include length"
+    );
+
+    let bio_col = structure
+        .columns
+        .iter()
+        .find(|c| c.name == "bio")
+        .expect("bio column should exist");
+    assert_eq!(
+        bio_col.r#type, "varchar(MAX)",
+        "bio type should be varchar(MAX)"
+    );
+
+    let score_col = structure
+        .columns
+        .iter()
+        .find(|c| c.name == "score")
+        .expect("score column should exist");
+    assert_eq!(
+        score_col.r#type, "decimal(10,2)",
+        "score type should include precision/scale"
+    );
+
+    let tag_col = structure
+        .columns
+        .iter()
+        .find(|c| c.name == "tag")
+        .expect("tag column should exist");
+    assert_eq!(tag_col.r#type, "char(8)", "tag type should include length");
+
+    let ts_col = structure
+        .columns
+        .iter()
+        .find(|c| c.name == "created_at")
+        .expect("created_at column should exist");
+    assert_eq!(
+        ts_col.r#type, "datetime2(3)",
+        "created_at type should include scale"
+    );
+
+    let payload_col = structure
+        .columns
+        .iter()
+        .find(|c| c.name == "payload")
+        .expect("payload column should exist");
+    assert_eq!(
+        payload_col.r#type, "varbinary(256)",
+        "payload type should include length"
+    );
+
+    // --- Verify column comments ---
+    assert_eq!(
+        id_col.comment.as_deref(),
+        Some("Primary key"),
+        "id should have comment"
+    );
+    assert_eq!(
+        name_col.comment.as_deref(),
+        Some("User display name"),
+        "name should have comment"
+    );
+    assert_eq!(
+        bio_col.comment.as_deref(),
+        Some("Biography text"),
+        "bio should have comment"
+    );
+    assert!(
+        score_col.comment.is_none(),
+        "score should have no comment"
+    );
+
+    // --- Verify index unique flag ---
+    let metadata = driver
+        .get_table_metadata("dbo".to_string(), table_name.to_string())
+        .await
+        .expect("get_table_metadata failed");
+
+    let unique_idx = metadata
+        .indexes
+        .iter()
+        .find(|i| i.name.contains("uq_") && i.name.contains("name"))
+        .expect("unique index should exist");
+    assert!(unique_idx.unique, "unique index should have unique=true");
+    assert!(
+        unique_idx.columns.contains(&"name".to_string()),
+        "unique index should be on name column"
+    );
+
+    let non_unique_idx = metadata
+        .indexes
+        .iter()
+        .find(|i| i.name.contains("idx_") && i.name.contains("score"))
+        .expect("non-unique index should exist");
+    assert!(
+        !non_unique_idx.unique,
+        "non-unique index should have unique=false"
+    );
+
+    // Cleanup
+    let _ = driver
+        .execute_query(format!(
+            "IF OBJECT_ID(N'dbo.{}', N'U') IS NOT NULL DROP TABLE {};",
+            table_name, qualified
+        ))
+        .await;
+    driver.close().await;
+}
+
+#[tokio::test]
+#[ignore]
 async fn test_mssql_prepared_statements_prepare_execute_and_deallocate() {
     let form = shared_mssql_form();
     let driver: MssqlDriver = connect_with_retry(|| MssqlDriver::connect(&form)).await;

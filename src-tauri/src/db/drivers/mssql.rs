@@ -841,6 +841,9 @@ impl MssqlDriver {
         if let Ok(Some(v)) = row.try_get::<i32, _>(idx) {
             return v as i64;
         }
+        if let Ok(Some(v)) = row.try_get::<bool, _>(idx) {
+            return if v { 1 } else { 0 };
+        }
         if let Ok(Some(v)) = row.try_get::<&str, _>(idx) {
             return v.parse::<i64>().unwrap_or(0);
         }
@@ -1331,6 +1334,45 @@ mod tests {
         };
         assert!(super::build_config(&form).is_err());
     }
+
+    #[test]
+    fn test_mssql_full_type_string_varchar() {
+        assert_eq!(super::mssql_full_type_string("varchar", 255, 0, 0), "varchar(255)");
+        assert_eq!(super::mssql_full_type_string("varchar", -1, 0, 0), "varchar(MAX)");
+        assert_eq!(super::mssql_full_type_string("char", 10, 0, 0), "char(10)");
+        assert_eq!(super::mssql_full_type_string("varbinary", -1, 0, 0), "varbinary(MAX)");
+        assert_eq!(super::mssql_full_type_string("binary", 16, 0, 0), "binary(16)");
+    }
+
+    #[test]
+    fn test_mssql_full_type_string_nvarchar() {
+        // nvarchar max_length is in bytes (2 bytes per char)
+        assert_eq!(super::mssql_full_type_string("nvarchar", 100, 0, 0), "nvarchar(50)");
+        assert_eq!(super::mssql_full_type_string("nvarchar", -1, 0, 0), "nvarchar(MAX)");
+        assert_eq!(super::mssql_full_type_string("nchar", 20, 0, 0), "nchar(10)");
+    }
+
+    #[test]
+    fn test_mssql_full_type_string_decimal() {
+        assert_eq!(super::mssql_full_type_string("decimal", 0, 10, 2), "decimal(10,2)");
+        assert_eq!(super::mssql_full_type_string("numeric", 0, 18, 0), "numeric(18,0)");
+    }
+
+    #[test]
+    fn test_mssql_full_type_string_datetime_with_scale() {
+        assert_eq!(super::mssql_full_type_string("datetime2", 0, 0, 7), "datetime2(7)");
+        assert_eq!(super::mssql_full_type_string("datetime2", 0, 0, 0), "datetime2");
+        assert_eq!(super::mssql_full_type_string("datetimeoffset", 0, 0, 3), "datetimeoffset(3)");
+        assert_eq!(super::mssql_full_type_string("time", 0, 0, 4), "time(4)");
+    }
+
+    #[test]
+    fn test_mssql_full_type_string_passthrough() {
+        assert_eq!(super::mssql_full_type_string("int", 0, 0, 0), "int");
+        assert_eq!(super::mssql_full_type_string("bigint", 0, 0, 0), "bigint");
+        assert_eq!(super::mssql_full_type_string("bit", 0, 0, 0), "bit");
+        assert_eq!(super::mssql_full_type_string("uniqueidentifier", 0, 0, 0), "uniqueidentifier");
+    }
 }
 
 fn render_mssql_create_table_ddl(
@@ -1621,7 +1663,8 @@ impl DatabaseDriver for MssqlDriver {
             .collect();
 
         let sql = format!(
-            "SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_DEFAULT \
+            "SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_DEFAULT, \
+                    CHARACTER_MAXIMUM_LENGTH, NUMERIC_PRECISION, NUMERIC_SCALE \
              FROM INFORMATION_SCHEMA.COLUMNS \
              WHERE TABLE_SCHEMA = '{}' AND TABLE_NAME = '{}' \
              ORDER BY ORDINAL_POSITION",
@@ -1630,13 +1673,44 @@ impl DatabaseDriver for MssqlDriver {
         );
 
         let rows = self.fetch_rows(&sql).await?;
+
+        let comment_sql = format!(
+            "SELECT c.name, CAST(ep.value AS NVARCHAR(4000)) \
+             FROM sys.extended_properties ep \
+             JOIN sys.columns c \
+               ON ep.major_id = c.object_id AND ep.minor_id = c.column_id \
+             JOIN sys.tables t ON t.object_id = c.object_id \
+             JOIN sys.schemas s ON s.schema_id = t.schema_id \
+             WHERE ep.name = 'MS_Description' \
+               AND s.name = '{}' AND t.name = '{}'",
+            escape_literal(&schema),
+            escape_literal(&table)
+        );
+        let comment_rows = self.fetch_rows(&comment_sql).await?;
+        let comment_map: HashMap<String, String> = comment_rows
+            .iter()
+            .filter_map(|row| {
+                let val = Self::parse_string(row, 1);
+                if val.is_empty() {
+                    None
+                } else {
+                    Some((Self::parse_string(row, 0), val))
+                }
+            })
+            .collect();
+
         let mut columns = Vec::new();
         for row in rows {
             let name = Self::parse_string(&row, 0);
+            let data_type = Self::parse_string(&row, 1);
+            let max_length = Self::parse_i64(&row, 4);
+            let precision = Self::parse_i64(&row, 5);
+            let scale = Self::parse_i64(&row, 6);
+            let full_type = mssql_full_type_string(&data_type, max_length, precision, scale);
             let default_raw = Self::parse_string(&row, 3);
             columns.push(ColumnInfo {
                 name: name.clone(),
-                r#type: Self::parse_string(&row, 1),
+                r#type: full_type,
                 nullable: Self::parse_string(&row, 2).eq_ignore_ascii_case("YES"),
                 default_value: if default_raw.is_empty() {
                     None
@@ -1644,7 +1718,7 @@ impl DatabaseDriver for MssqlDriver {
                     Some(default_raw)
                 },
                 primary_key: pk_set.contains(&name),
-                comment: None,
+                comment: comment_map.get(&name).cloned(),
                 default_constraint_name: dc_map.get(&name).cloned(),
             });
         }
