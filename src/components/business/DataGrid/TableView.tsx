@@ -1975,12 +1975,12 @@ export function TableView({
 
       <div className="flex-1 overflow-auto">
         {viewMode === "column" ? (
-          <table className="border-collapse" style={{ minWidth: "100%" }}>
+          <table className="border-collapse w-auto">
             <colgroup>
               <col style={{ width: 50 }} />
-              <col style={{ width: 180 }} />
+              <col />
               {currentData.map((_, idx) => (
-                <col key={idx} style={{ width: 200, minWidth: 150 }} />
+                <col key={idx} />
               ))}
             </colgroup>
             <thead className="bg-muted/90 sticky top-0 z-10">
