@@ -1,6 +1,7 @@
 import {
   QueryResult,
   SqlExecutionLog,
+  RedisCommandLog,
   TableMetadata,
   SchemaOverview,
   ConnectionForm,
@@ -638,6 +639,15 @@ function appendSqlExecutionLog(params: {
   if (mockSqlExecutionLogs.length > 100) {
     mockSqlExecutionLogs.length = 100;
   }
+}
+
+const mockRedisCommandLogs: RedisCommandLog[] = [];
+
+export async function mockListRedisCommandLogs(
+  limit?: number,
+): Promise<RedisCommandLog[]> {
+  const safeLimit = Math.min(Math.max(limit ?? 100, 1), 100);
+  return mockRedisCommandLogs.slice(0, safeLimit);
 }
 
 const mockAiProviders: AIProviderConfig[] = [
@@ -1614,6 +1624,9 @@ export async function invokeMock<T>(cmd: string, args?: any): Promise<T> {
     case "list_sql_execution_logs":
       return mockListSqlExecutionLogs(args?.limit) as Promise<T>;
 
+    case "list_redis_command_logs":
+      return mockListRedisCommandLogs(args?.limit) as Promise<T>;
+
     // Metadata commands
     case "list_tables":
       return mockListTables(args.id, args.database, args.schema) as Promise<T>;
@@ -1990,6 +2003,28 @@ export async function invokeMock<T>(cmd: string, args?: any): Promise<T> {
         messages: mockAiMessages[c.id] || [],
       }) as Promise<T>;
     }
+
+    case "list_system_fonts":
+      return Promise.resolve([
+        "Arial",
+        "Helvetica",
+        "Times New Roman",
+        "Courier New",
+        "Georgia",
+        "Verdana",
+        "Trebuchet MS",
+        "Arial Black",
+        "Impact",
+        "Lucida Console",
+        "Monaco",
+        "Menlo",
+        "SF Pro Text",
+        "SF Mono",
+        "PingFang SC",
+        "Microsoft YaHei",
+        "SimSun",
+        "SimHei",
+      ]) as Promise<T>;
 
     case "ai_delete_conversation": {
       const idx = mockAiConversations.findIndex(

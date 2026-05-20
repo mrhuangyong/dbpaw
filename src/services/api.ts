@@ -414,6 +414,16 @@ export interface SqlExecutionLog {
   executedAt: string;
 }
 
+export interface RedisCommandLog {
+  id: number;
+  command: string;
+  connectionId?: number | null;
+  database?: string | null;
+  success: boolean;
+  error?: string | null;
+  executedAt: string;
+}
+
 import {
   DRIVER_REGISTRY,
   type Driver,
@@ -775,6 +785,10 @@ export const api = {
   sqlLogs: {
     list: (limit = 100) =>
       invoke<SqlExecutionLog[]>("list_sql_execution_logs", { limit }),
+  },
+  redisLogs: {
+    list: (limit = 100) =>
+      invoke<RedisCommandLog[]>("list_redis_command_logs", { limit }),
   },
   metadata: {
     listTables: (id: number, database?: string, schema?: string) =>
@@ -1636,5 +1650,8 @@ export const api = {
       delete: (conversationId: number) =>
         invoke<void>("ai_delete_conversation", { conversationId }),
     },
+  },
+  system: {
+    listFonts: () => invoke<string[]>("list_system_fonts"),
   },
 };

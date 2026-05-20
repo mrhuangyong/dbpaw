@@ -99,6 +99,10 @@ export const ja: Translations = {
       themeTitle: "テーマ",
       themeDescription: "インターフェースのテーマを選択します",
       selectTheme: "テーマを選択",
+      fontFamilyTitle: "フォントファミリー",
+      fontFamilyDescription: "お好みのフォントを選択してください",
+      selectFont: "フォントを選択",
+      systemDefault: "システムデフォルト",
       fontSizeTitle: "フォントサイズ",
       fontSizeDescription:
         "アプリ全体の文字サイズを調整します（範囲：{{min}}-{{max}}px）",

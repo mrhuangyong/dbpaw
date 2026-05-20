@@ -15,6 +15,8 @@ export const MIN_EDITOR_FONT_SIZE_PX = 8;
 export const MAX_EDITOR_FONT_SIZE_PX = 32;
 export const DEFAULT_EDITOR_FONT_SIZE_PX = 14;
 
+export const DEFAULT_FONT_FAMILY = "system-ui, -apple-system, sans-serif";
+
 interface ThemeProviderState {
   theme: ThemeId;
   setTheme: (theme: ThemeId) => void;
@@ -22,6 +24,8 @@ interface ThemeProviderState {
   setFontSizePx: (size: number) => void;
   editorFontSizePx: number;
   setEditorFontSizePx: (size: number) => void;
+  fontFamily: string;
+  setFontFamily: (font: string) => void;
 }
 
 const initialState: ThemeProviderState = {
@@ -31,6 +35,8 @@ const initialState: ThemeProviderState = {
   setFontSizePx: () => null,
   editorFontSizePx: DEFAULT_EDITOR_FONT_SIZE_PX,
   setEditorFontSizePx: () => null,
+  fontFamily: DEFAULT_FONT_FAMILY,
+  setFontFamily: () => null,
 };
 
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
@@ -49,6 +55,8 @@ export function ThemeProvider({
   const [editorFontSizePx, setEditorFontSizePxState] = useState<number>(
     DEFAULT_EDITOR_FONT_SIZE_PX,
   );
+  const [fontFamily, setFontFamilyState] =
+    useState<string>(DEFAULT_FONT_FAMILY);
   const [isLoaded, setIsLoaded] = useState(false);
 
   const clampFontSize = (size: number) => {
@@ -87,6 +95,11 @@ export function ThemeProvider({
     root.style.setProperty("--font-size", `${size}px`);
   };
 
+  const applyFontFamily = (font: string) => {
+    const root = document.documentElement;
+    root.style.setProperty("--font-family", font);
+  };
+
   useEffect(() => {
     const loadSettings = async () => {
       const rawTheme = await getSetting<string>("theme", defaultTheme);
@@ -101,13 +114,19 @@ export function ThemeProvider({
         DEFAULT_EDITOR_FONT_SIZE_PX,
       );
       const normalizedEditorFontSize = clampEditorFontSize(savedEditorFontSize);
+      const savedFontFamily = await getSetting<string>(
+        "fontFamily",
+        DEFAULT_FONT_FAMILY,
+      );
 
       setThemeState(savedTheme);
       setFontSizePxState(normalizedFontSize);
       setEditorFontSizePxState(normalizedEditorFontSize);
+      setFontFamilyState(savedFontFamily);
 
       applyTheme(savedTheme);
       applyFontSizePx(normalizedFontSize);
+      applyFontFamily(savedFontFamily);
 
       if (savedTheme !== rawTheme) {
         void saveSetting("theme", savedTheme);
@@ -138,6 +157,12 @@ export function ThemeProvider({
     void saveSetting("editorFontSizePx", normalizedSize);
   };
 
+  const setFontFamily = (font: string) => {
+    setFontFamilyState(font);
+    applyFontFamily(font);
+    void saveSetting("fontFamily", font);
+  };
+
   if (!isLoaded) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-background">
@@ -153,6 +178,8 @@ export function ThemeProvider({
     setFontSizePx,
     editorFontSizePx,
     setEditorFontSizePx,
+    fontFamily,
+    setFontFamily,
   };
 
   return (

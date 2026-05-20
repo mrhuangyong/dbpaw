@@ -3,6 +3,7 @@
 :root {
   /* Global typography scale: adjust this value to resize most app text uniformly. */
   --font-size: 14px;
+  --font-family: system-ui, -apple-system, sans-serif;
   --background: #ffffff;
   --foreground: oklch(0.145 0 0);
   --card: #ffffff;
@@ -439,6 +440,7 @@
 
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-family);
   }
 
   /**

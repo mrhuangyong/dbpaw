@@ -97,6 +97,10 @@ export const en = {
       themeTitle: "Theme",
       themeDescription: "Choose your interface theme",
       selectTheme: "Select theme",
+      fontFamilyTitle: "Font Family",
+      fontFamilyDescription: "Choose your preferred font",
+      selectFont: "Select font",
+      systemDefault: "System Default",
       fontSizeTitle: "Font Size",
       fontSizeDescription:
         "Adjust global text size across the app (Range: {{min}}-{{max}}px)",

@@ -14,6 +14,7 @@ import {
   MAX_FONT_SIZE_PX,
   MIN_EDITOR_FONT_SIZE_PX,
   MAX_EDITOR_FONT_SIZE_PX,
+  DEFAULT_FONT_FAMILY,
 } from "@/components/theme-provider";
 import { ThemeId, THEME_PRESETS } from "@/theme/themeRegistry";
 import { useState, useEffect } from "react";
@@ -244,6 +245,8 @@ export function SettingsDialog({
     setFontSizePx,
     editorFontSizePx,
     setEditorFontSizePx,
+    fontFamily,
+    setFontFamily,
   } = useTheme();
   const [activeSection, setActiveSection] =
     useState<SettingsSection>("general");
@@ -273,6 +276,7 @@ export function SettingsDialog({
     String(editorFontSizePx),
   );
   const [layoutMode, setLayoutMode] = useState<"tabs" | "tree">(sidebarLayout);
+  const [fontList, setFontList] = useState<string[]>([]);
 
   const clampFontSize = (size: number) => {
     const rounded = Math.round(size);
@@ -293,6 +297,12 @@ export function SettingsDialog({
     });
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    if (open) {
+      api.system.listFonts().then(setFontList).catch(console.error);
+    }
+  }, [open]);
 
   useEffect(() => {
     if (open) {
@@ -650,6 +660,41 @@ export function SettingsDialog({
                               {preset.label}
                             </SelectItem>
                           ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 items-center">
+                    <div className="space-y-1">
+                      <Label className="text-base">
+                        {t("settings.appearance.fontFamilyTitle")}
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        {t("settings.appearance.fontFamilyDescription")}
+                      </p>
+                    </div>
+                    <Select
+                      value={fontFamily}
+                      onValueChange={(v) => setFontFamily(v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={t("settings.appearance.selectFont")}
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={DEFAULT_FONT_FAMILY}>
+                          {t("settings.appearance.systemDefault")}
+                        </SelectItem>
+                        {fontList.map((font) => (
+                          <SelectItem
+                            key={font}
+                            value={font}
+                            style={{ fontFamily: font }}
+                          >
+                            {font}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>

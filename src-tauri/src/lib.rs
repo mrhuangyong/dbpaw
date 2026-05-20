@@ -237,6 +237,7 @@ pub fn run() {
             commands::redis::redis_ltrim,
             commands::redis::redis_linsert,
             commands::redis::redis_lmove,
+            commands::redis::list_redis_command_logs,
             commands::elasticsearch::elasticsearch_test_connection,
             commands::elasticsearch::elasticsearch_test_connection_ephemeral,
             commands::elasticsearch::elasticsearch_list_indices,
@@ -257,6 +258,7 @@ pub fn run() {
             commands::mongodb::mongodb_test_connection_ephemeral,
             commands::mongodb::mongodb_list_databases,
             commands::mongodb::mongodb_list_collections,
+            commands::system::list_system_fonts,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
