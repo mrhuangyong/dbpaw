@@ -685,6 +685,8 @@ export function ConnectionList({
   const [mysqlCharsets, setMysqlCharsets] = useState<string[]>([]);
   const [mysqlCollations, setMysqlCollations] = useState<string[]>([]);
   const [loadingMysqlOptions, setLoadingMysqlOptions] = useState(false);
+  const [isLoadingConnections, setIsLoadingConnections] = useState(false);
+  const [isLoadingQueries, setIsLoadingQueries] = useState(false);
   const [testMsg, setTestMsg] = useState<{
     ok: boolean;
     text: string;
@@ -1068,6 +1070,7 @@ export function ConnectionList({
   }, [showSavedQueriesInTree, lastUpdated]);
 
   const fetchConnections = async () => {
+    setIsLoadingConnections(true);
     try {
       const conns = await api.connections.list();
       const mapped = conns.map((c) =>
@@ -1075,10 +1078,13 @@ export function ConnectionList({
       );
       setConnections((prev) => mergeConnections(mapped, prev));
     } catch (e) {
-      console.error(
-        "listConnections failed",
-        e instanceof Error ? e.message : String(e),
-      );
+      const message = e instanceof Error ? e.message : String(e);
+      console.error("listConnections failed", message);
+      toast.error(t("connection.toast.loadConnectionsFailed"), {
+        description: message,
+      });
+    } finally {
+      setIsLoadingConnections(false);
     }
   };
 
@@ -1110,6 +1116,7 @@ export function ConnectionList({
   };
 
   const fetchSavedQueriesByConnection = async () => {
+    setIsLoadingQueries(true);
     try {
       const queries = await api.queries.list();
       const grouped: Record<string, SavedQuery[]> = {};
@@ -1124,10 +1131,13 @@ export function ConnectionList({
       );
       setSavedQueriesByConnection(grouped);
     } catch (e) {
-      console.error(
-        "Failed to fetch saved queries for tree",
-        e instanceof Error ? e.message : String(e),
-      );
+      const message = e instanceof Error ? e.message : String(e);
+      console.error("Failed to fetch saved queries for tree", message);
+      toast.error(t("connection.toast.loadQueriesFailed"), {
+        description: message,
+      });
+    } finally {
+      setIsLoadingQueries(false);
     }
   };
 
@@ -2870,13 +2880,19 @@ export function ConnectionList({
   return (
     <div className="h-full flex flex-col bg-background border-r border-border">
       <div className="px-2 py-1 border-b border-border flex items-center justify-between h-8">
-        <h2 className="font-semibold text-sm">{t("connection.title")}</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="font-semibold text-sm">{t("connection.title")}</h2>
+          {isLoadingQueries && (
+            <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+          )}
+        </div>
         <div className="flex gap-1">
           <Button
             variant="ghost"
             size="sm"
             className="h-6 w-6 p-0"
             onClick={fetchConnections}
+            loading={isLoadingConnections}
           >
             <RefreshCw className="w-3.5 h-3.5" />
           </Button>

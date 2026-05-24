@@ -452,14 +452,18 @@ export function SqlEditor({
             database: databaseName,
           });
         }
+        toast.success(t("sqlEditor.save.success"));
         if (onSaveSuccess) {
           onSaveSuccess(result);
         }
       } catch (e) {
         console.error("Failed to save query", e);
+        toast.error(t("sqlEditor.save.failed"), {
+          description: e instanceof Error ? e.message : String(e),
+        });
       }
     },
-    [code, _connectionId, databaseName, onSaveSuccess],
+    [code, _connectionId, databaseName, onSaveSuccess, t],
   );
 
   const handleSave = async (name: string, description: string) => {
