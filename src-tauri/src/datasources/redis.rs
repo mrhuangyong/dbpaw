@@ -970,7 +970,20 @@ pub async fn connect(
         let db = selected_database(form, database)?;
         let node_info = build_sentinel_node_info(form, db);
 
-        let mut sentinel = Sentinel::build(sentinel_nodes).map_err(|e| conn_failed_error(&e))?;
+        // Build sentinel node URLs with optional sentinel password
+        let sentinel_password = form.sentinel_password.as_deref().filter(|v| !v.is_empty());
+        let sentinel_urls: Vec<String> = sentinel_nodes
+            .iter()
+            .map(|node| {
+                if let Some(password) = sentinel_password {
+                    format!("redis://:{}@{}", password, node)
+                } else {
+                    format!("redis://{}", node)
+                }
+            })
+            .collect();
+
+        let mut sentinel = Sentinel::build(sentinel_urls).map_err(|e| conn_failed_error(&e))?;
 
         let client = sentinel
             .async_master_for(&service_name, Some(&node_info))

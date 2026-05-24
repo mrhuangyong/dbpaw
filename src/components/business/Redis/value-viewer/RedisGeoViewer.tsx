@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { MapPin, Plus, Ruler, Search, Trash2, ArrowUpDown } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -108,9 +109,13 @@ export function RedisGeoViewer({
         );
         if (positions[0]) {
           setPosLookup((prev) => new Map(prev).set(member, positions[0]!));
+        } else {
+          toast.warning("No coordinates found for this member");
         }
-      } catch {
-        // handled upstream
+      } catch (e) {
+        toast.error("Failed to lookup coordinates", {
+          description: e instanceof Error ? e.message : String(e),
+        });
       } finally {
         setLoadingPos((prev) => {
           const next = new Set(prev);
@@ -145,13 +150,16 @@ export function RedisGeoViewer({
       await api.redis.geoAdd(connectionId, database, redisKey, [
         { member: m, longitude: lon, latitude: lat },
       ]);
+      toast.success(`Location "${m}" added`);
       setNewMember("");
       setNewLon("");
       setNewLat("");
       setShowAddRow(false);
       onRefresh();
-    } catch {
-      // handled upstream
+    } catch (e) {
+      toast.error("Failed to add location", {
+        description: e instanceof Error ? e.message : String(e),
+      });
     } finally {
       setAdding(false);
     }
@@ -171,8 +179,12 @@ export function RedisGeoViewer({
         distUnit,
       );
       setDistResult(result);
-    } catch {
+      toast.success("Distance calculated");
+    } catch (e) {
       setDistResult(null);
+      toast.error("Failed to calculate distance", {
+        description: e instanceof Error ? e.message : String(e),
+      });
     } finally {
       setDistLoading(false);
     }
@@ -198,8 +210,12 @@ export function RedisGeoViewer({
         },
       );
       setSearchResults(results);
-    } catch {
+      toast.success(`Found ${results.length} location(s) nearby`);
+    } catch (e) {
       setSearchResults(null);
+      toast.error("Failed to search nearby locations", {
+        description: e instanceof Error ? e.message : String(e),
+      });
     } finally {
       setSearchLoading(false);
     }
