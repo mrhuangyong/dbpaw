@@ -1,6 +1,6 @@
 use super::DatabaseDriver;
 use crate::models::{
-    ColumnInfo, ColumnSchema, ConnectionForm, QueryColumn, QueryResult, SchemaOverview,
+    ColumnInfo, ColumnSchema, ConnectionForm, IndexInfo, QueryColumn, QueryResult, SchemaOverview,
     SingleResultSet, TableDataResponse, TableInfo, TableMetadata, TableSchema, TableStructure,
 };
 use async_trait::async_trait;
@@ -14,6 +14,10 @@ use std::time::{Duration, Instant};
 const DEFAULT_MONGODB_PORT: i64 = 27017;
 const DEFAULT_CONNECT_TIMEOUT_MS: i64 = 5000;
 const SCHEMA_SAMPLE_SIZE: i64 = 100;
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 fn trim_to_option(value: Option<&String>) -> Option<String> {
     value
@@ -69,20 +73,16 @@ fn build_connection_uri(form: &ConnectionForm) -> Result<String, String> {
         uri.push_str(db);
     }
 
-    let mut params: Vec<String> = Vec::new();
-
+    let mut params = Vec::new();
     if let Some(src) = &auth_source {
         params.push(format!("authSource={}", urlencoding::encode(src)));
     }
-
     if form.ssl.unwrap_or(false) {
         params.push("ssl=true".to_string());
     }
-
     if let Some(timeout) = form.connect_timeout_ms {
         params.push(format!("connectTimeoutMS={}", timeout));
     }
-
     if !params.is_empty() {
         uri.push('?');
         uri.push_str(&params.join("&"));
@@ -91,16 +91,29 @@ fn build_connection_uri(form: &ConnectionForm) -> Result<String, String> {
     Ok(uri)
 }
 
+/// Parse a JSON string into a BSON Document, returning a user-friendly error on failure.
+fn parse_json_doc(json_str: &str, label: &str) -> Result<Document, String> {
+    let trimmed = json_str.trim();
+    if trimmed.is_empty() {
+        return Ok(Document::new());
+    }
+    let value: serde_json::Value = serde_json::from_str(trimmed)
+        .map_err(|e| format!("[VALIDATION_ERROR] Invalid {} JSON: {}", label, e))?;
+    mongodb::bson::to_document(&value)
+        .map_err(|e| format!("[VALIDATION_ERROR] Failed to convert {} to BSON: {}", label, e))
+}
+
+// ---------------------------------------------------------------------------
+// BSON <-> JSON conversion
+// ---------------------------------------------------------------------------
+
 fn bson_to_json(bson: &Bson) -> Value {
     match bson {
         Bson::Double(v) => serde_json::json!(v),
         Bson::String(v) => Value::String(v.clone()),
         Bson::Array(arr) => Value::Array(arr.iter().map(bson_to_json).collect()),
         Bson::Document(doc) => {
-            let map: serde_json::Map<String, Value> = doc
-                .iter()
-                .map(|(k, v)| (k.clone(), bson_to_json(v)))
-                .collect();
+            let map = doc.iter().map(|(k, v)| (k.clone(), bson_to_json(v))).collect();
             Value::Object(map)
         }
         Bson::Boolean(v) => serde_json::json!(v),
@@ -114,57 +127,39 @@ fn bson_to_json(bson: &Bson) -> Value {
         Bson::RegularExpression(re) => Value::String(format!("/{}/{}", re.pattern, re.options)),
         Bson::JavaScriptCode(code) => Value::String(code.clone()),
         Bson::Symbol(sym) => Value::String(sym.clone()),
-        _ => Value::String(format!("{:?}", bson)),
+        other => Value::String(format!("{:?}", other)),
     }
 }
 
-fn infer_type_from_bson(bson: &Bson) -> String {
+fn bson_type_name(bson: &Bson) -> &'static str {
     match bson {
-        Bson::Double(_) => "double".to_string(),
-        Bson::String(_) => "string".to_string(),
-        Bson::Array(_) => "array".to_string(),
-        Bson::Document(_) => "object".to_string(),
-        Bson::Boolean(_) => "bool".to_string(),
-        Bson::Null => "null".to_string(),
-        Bson::Int32(_) => "int32".to_string(),
-        Bson::Int64(_) => "int64".to_string(),
-        Bson::ObjectId(_) => "objectId".to_string(),
-        Bson::DateTime(_) => "date".to_string(),
-        Bson::Timestamp(_) => "timestamp".to_string(),
-        Bson::Binary(_) => "binData".to_string(),
-        Bson::RegularExpression(_) => "regex".to_string(),
-        Bson::JavaScriptCode(_) => "javascript".to_string(),
-        Bson::JavaScriptCodeWithScope(_) => "javascriptWithScope".to_string(),
-        Bson::Decimal128(_) => "decimal128".to_string(),
-        Bson::Symbol(_) => "symbol".to_string(),
-        Bson::Undefined => "undefined".to_string(),
-        Bson::DbPointer(_) => "dbPointer".to_string(),
-        Bson::MinKey => "minKey".to_string(),
-        Bson::MaxKey => "maxKey".to_string(),
+        Bson::Double(_) => "double",
+        Bson::String(_) => "string",
+        Bson::Array(_) => "array",
+        Bson::Document(_) => "object",
+        Bson::Boolean(_) => "bool",
+        Bson::Null => "null",
+        Bson::Int32(_) => "int32",
+        Bson::Int64(_) => "int64",
+        Bson::ObjectId(_) => "objectId",
+        Bson::DateTime(_) => "date",
+        Bson::Timestamp(_) => "timestamp",
+        Bson::Binary(_) => "binData",
+        Bson::RegularExpression(_) => "regex",
+        Bson::JavaScriptCode(_) => "javascript",
+        Bson::JavaScriptCodeWithScope(_) => "javascriptWithScope",
+        Bson::Decimal128(_) => "decimal128",
+        Bson::Symbol(_) => "symbol",
+        Bson::Undefined => "undefined",
+        Bson::DbPointer(_) => "dbPointer",
+        Bson::MinKey => "minKey",
+        Bson::MaxKey => "maxKey",
     }
 }
 
-fn parse_json_filter(json_str: &str) -> Result<Document, String> {
-    let trimmed = json_str.trim();
-    if trimmed.is_empty() {
-        return Ok(Document::new());
-    }
-    serde_json::from_str::<serde_json::Value>(trimmed)
-        .map_err(|e| format!("[VALIDATION_ERROR] Invalid filter JSON: {}", e))?;
-    mongodb::bson::to_document(&serde_json::from_str::<serde_json::Value>(trimmed).unwrap())
-        .map_err(|e| format!("[VALIDATION_ERROR] Failed to convert filter to BSON: {}", e))
-}
-
-fn parse_sort(json_str: &str) -> Result<Document, String> {
-    let trimmed = json_str.trim();
-    if trimmed.is_empty() {
-        return Ok(Document::new());
-    }
-    serde_json::from_str::<serde_json::Value>(trimmed)
-        .map_err(|e| format!("[VALIDATION_ERROR] Invalid sort JSON: {}", e))?;
-    mongodb::bson::to_document(&serde_json::from_str::<serde_json::Value>(trimmed).unwrap())
-        .map_err(|e| format!("[VALIDATION_ERROR] Failed to convert sort to BSON: {}", e))
-}
+// ---------------------------------------------------------------------------
+// Driver
+// ---------------------------------------------------------------------------
 
 pub struct MongoDBDriver {
     client: Client,
@@ -191,11 +186,9 @@ impl MongoDBDriver {
         };
 
         let uri = build_connection_uri(&effective_form)?;
-
         let mut options = ClientOptions::parse(&uri)
             .await
-            .map_err(|e| normalize_mongo_error(e))?;
-
+            .map_err(normalize_mongo_error)?;
         options.connect_timeout = Some(Duration::from_millis(timeout_ms as u64));
 
         if effective_form.ssl.unwrap_or(false) {
@@ -212,11 +205,9 @@ impl MongoDBDriver {
             }
         }
 
-        let client = Client::with_options(options).map_err(|e| normalize_mongo_error(e))?;
-
+        let client = Client::with_options(options).map_err(normalize_mongo_error)?;
         let default_database = effective_form
             .database
-            .clone()
             .filter(|d| !d.trim().is_empty())
             .unwrap_or_else(|| "test".to_string());
 
@@ -236,37 +227,26 @@ impl MongoDBDriver {
         self.client.database(db_name)
     }
 
+    /// Sample documents to infer the collection's field names and types.
     async fn infer_collection_schema(
         &self,
         db_name: &str,
         collection_name: &str,
     ) -> Result<Vec<ColumnInfo>, String> {
-        let db = self.client.database(db_name);
-        let collection = db.collection::<Document>(collection_name);
+        let collection = self.client.database(db_name).collection::<Document>(collection_name);
 
         let mut cursor = collection
             .find(Document::new())
             .limit(SCHEMA_SAMPLE_SIZE)
             .await
-            .map_err(|e| normalize_mongo_error(e))?;
+            .map_err(normalize_mongo_error)?;
 
-        let mut field_types: HashMap<String, HashSet<String>> = HashMap::new();
+        let mut field_types: HashMap<String, HashSet<&str>> = HashMap::new();
 
-        while cursor
-            .advance()
-            .await
-            .map_err(|e| normalize_mongo_error(e))?
-        {
-            let doc = cursor
-                .deserialize_current()
-                .map_err(|e| normalize_mongo_error(e))?;
-
+        while cursor.advance().await.map_err(normalize_mongo_error)? {
+            let doc = cursor.deserialize_current().map_err(normalize_mongo_error)?;
             for (key, value) in doc.iter() {
-                let type_name = infer_type_from_bson(value);
-                field_types
-                    .entry(key.clone())
-                    .or_default()
-                    .insert(type_name);
+                field_types.entry(key.clone()).or_default().insert(bson_type_name(value));
             }
         }
 
@@ -274,9 +254,11 @@ impl MongoDBDriver {
             .into_iter()
             .map(|(name, types)| {
                 let type_str = if types.len() == 1 {
-                    types.into_iter().next().unwrap()
+                    types.into_iter().next().unwrap().to_string()
                 } else {
-                    format!("mixed({})", types.into_iter().collect::<Vec<_>>().join(","))
+                    let mut sorted: Vec<&str> = types.into_iter().collect();
+                    sorted.sort();
+                    format!("mixed({})", sorted.join(","))
                 };
                 ColumnInfo {
                     name,
@@ -293,29 +275,82 @@ impl MongoDBDriver {
         columns.sort_by(|a, b| a.name.cmp(&b.name));
         Ok(columns)
     }
+
+    /// Convert a MongoDB cursor into a QueryResult.
+    async fn cursor_to_query_result(
+        &self,
+        mut cursor: mongodb::Cursor<Document>,
+        statement: &str,
+        start: Instant,
+    ) -> Result<QueryResult, String> {
+        let mut data = Vec::new();
+        let mut columns_set = HashSet::new();
+
+        while cursor.advance().await.map_err(normalize_mongo_error)? {
+            let doc = cursor.deserialize_current().map_err(normalize_mongo_error)?;
+            for key in doc.keys() {
+                columns_set.insert(key.clone());
+            }
+            data.push(bson_to_json(&Bson::Document(doc)));
+        }
+
+        let mut columns: Vec<QueryColumn> = columns_set
+            .into_iter()
+            .map(|name| QueryColumn { name, r#type: "mixed".to_string() })
+            .collect();
+        columns.sort_by(|a, b| a.name.cmp(&b.name));
+
+        let row_count = data.len() as i64;
+        let duration_ms = start.elapsed().as_millis() as i64;
+
+        Ok(QueryResult {
+            row_count,
+            columns: columns.clone(),
+            time_taken_ms: duration_ms,
+            success: true,
+            error: None,
+            result_sets: Some(vec![SingleResultSet {
+                data: data.clone(),
+                row_count,
+                columns,
+                index: 0,
+                statement: statement.to_string(),
+            }]),
+            data,
+        })
+    }
+
+    /// Collect all documents from a cursor into a Vec<Value>.
+    async fn collect_cursor(&self, mut cursor: mongodb::Cursor<Document>) -> Result<Vec<Value>, String> {
+        let mut rows = Vec::new();
+        while cursor.advance().await.map_err(normalize_mongo_error)? {
+            let doc = cursor.deserialize_current().map_err(normalize_mongo_error)?;
+            rows.push(bson_to_json(&Bson::Document(doc)));
+        }
+        Ok(rows)
+    }
 }
+
+// ---------------------------------------------------------------------------
+// DatabaseDriver implementation
+// ---------------------------------------------------------------------------
 
 #[async_trait]
 impl DatabaseDriver for MongoDBDriver {
     async fn close(&self) {
-        // MongoDB client doesn't require explicit close
+        // MongoDB client manages connections via its internal connection pool.
     }
 
     async fn test_connection(&self) -> Result<(), String> {
         let db = self.get_database("admin");
         db.run_command(doc! { "ping": 1 })
             .await
-            .map_err(|e| normalize_mongo_error(e))?;
+            .map_err(normalize_mongo_error)?;
         Ok(())
     }
 
     async fn list_databases(&self) -> Result<Vec<String>, String> {
-        let databases = self
-            .client
-            .list_databases()
-            .await
-            .map_err(|e| normalize_mongo_error(e))?;
-
+        let databases = self.client.list_databases().await.map_err(normalize_mongo_error)?;
         Ok(databases.into_iter().map(|db| db.name).collect())
     }
 
@@ -325,21 +360,11 @@ impl DatabaseDriver for MongoDBDriver {
             .unwrap_or_else(|| self.default_database.clone());
 
         let db = self.client.database(&db_name);
-        let mut cursor = db
-            .list_collections()
-            .await
-            .map_err(|e| normalize_mongo_error(e))?;
+        let mut cursor = db.list_collections().await.map_err(normalize_mongo_error)?;
 
         let mut result = Vec::new();
-        while cursor
-            .advance()
-            .await
-            .map_err(|e| normalize_mongo_error(e))?
-        {
-            let collection = cursor
-                .deserialize_current()
-                .map_err(|e| normalize_mongo_error(e))?;
-
+        while cursor.advance().await.map_err(normalize_mongo_error)? {
+            let collection = cursor.deserialize_current().map_err(normalize_mongo_error)?;
             result.push(TableInfo {
                 schema: db_name.clone(),
                 name: collection.name,
@@ -368,39 +393,23 @@ impl DatabaseDriver for MongoDBDriver {
 
         let db = self.get_database(&schema);
         let collection = db.collection::<Document>(&table);
+        let mut cursor = collection.list_indexes().await.map_err(normalize_mongo_error)?;
 
-        let indexes = collection
-            .list_indexes()
-            .await
-            .map_err(|e| normalize_mongo_error(e))?;
-
-        let mut index_infos = Vec::new();
-        let mut cursor = indexes;
-        while cursor
-            .advance()
-            .await
-            .map_err(|e| normalize_mongo_error(e))?
-        {
-            let index = cursor
-                .deserialize_current()
-                .map_err(|e| normalize_mongo_error(e))?;
-
+        let mut indexes = Vec::new();
+        while cursor.advance().await.map_err(normalize_mongo_error)? {
+            let index = cursor.deserialize_current().map_err(normalize_mongo_error)?;
             let options = index.options.unwrap_or_default();
-            let name = options.name.unwrap_or_else(|| "unknown".to_string());
-            let unique = options.unique.unwrap_or(false);
-            let index_columns: Vec<String> = index.keys.keys().cloned().collect();
-
-            index_infos.push(crate::models::IndexInfo {
-                name,
-                unique,
+            indexes.push(IndexInfo {
+                name: options.name.unwrap_or_else(|| "unknown".to_string()),
+                unique: options.unique.unwrap_or(false),
                 index_type: None,
-                columns: index_columns,
+                columns: index.keys.keys().cloned().collect(),
             });
         }
 
         Ok(TableMetadata {
             columns,
-            indexes: index_infos,
+            indexes,
             foreign_keys: vec![],
             clickhouse_extra: None,
             special_type_summaries: vec![],
@@ -409,23 +418,13 @@ impl DatabaseDriver for MongoDBDriver {
 
     async fn get_table_ddl(&self, schema: String, table: String) -> Result<String, String> {
         let db = self.get_database(&schema);
-        let mut cursor = db
-            .list_collections()
-            .await
-            .map_err(|e| normalize_mongo_error(e))?;
+        let mut cursor = db.list_collections().await.map_err(normalize_mongo_error)?;
 
-        while cursor
-            .advance()
-            .await
-            .map_err(|e| normalize_mongo_error(e))?
-        {
-            let collection_info = cursor
-                .deserialize_current()
-                .map_err(|e| normalize_mongo_error(e))?;
-
-            if collection_info.name == table {
-                return Ok(serde_json::to_string_pretty(&collection_info)
-                    .unwrap_or_else(|_| format!("Collection: {}", table)));
+        while cursor.advance().await.map_err(normalize_mongo_error)? {
+            let info = cursor.deserialize_current().map_err(normalize_mongo_error)?;
+            if info.name == table {
+                return serde_json::to_string_pretty(&info)
+                    .map_err(|e| format!("[SERIALIZE_ERROR] {}", e));
             }
         }
 
@@ -448,21 +447,19 @@ impl DatabaseDriver for MongoDBDriver {
         let safe_limit = limit.clamp(1, 10_000);
         let skip = (safe_page - 1) * safe_limit;
 
-        let db = self.get_database(&schema);
-        let collection = db.collection::<Document>(&table);
-
+        let collection = self.get_database(&schema).collection::<Document>(&table);
         let filter_doc = match filter {
-            Some(f) => parse_json_filter(&f)?,
+            Some(f) => parse_json_doc(&f, "filter")?,
             None => Document::new(),
         };
 
         let total = collection
             .count_documents(filter_doc.clone())
             .await
-            .map_err(|e| normalize_mongo_error(e))? as i64;
+            .map_err(normalize_mongo_error)? as i64;
 
         let sort_doc = if let Some(ref ob) = order_by {
-            parse_sort(ob)?
+            parse_json_doc(ob, "sort")?
         } else if let Some(col) = sort_column {
             let dir = match sort_direction.as_deref() {
                 Some("desc") => -1,
@@ -474,37 +471,20 @@ impl DatabaseDriver for MongoDBDriver {
         };
 
         let mut find_builder = collection.find(filter_doc);
-        find_builder = find_builder.skip(skip as u64);
-        find_builder = find_builder.limit(safe_limit);
+        find_builder = find_builder.skip(skip as u64).limit(safe_limit);
         if !sort_doc.is_empty() {
             find_builder = find_builder.sort(sort_doc);
         }
 
-        let mut cursor = find_builder
-            .await
-            .map_err(|e| normalize_mongo_error(e))?;
+        let cursor = find_builder.await.map_err(normalize_mongo_error)?;
+        let rows = self.collect_cursor(cursor).await?;
 
-        let mut rows = Vec::new();
-        while cursor
-            .advance()
-            .await
-            .map_err(|e| normalize_mongo_error(e))?
-        {
-            let doc = cursor
-                .deserialize_current()
-                .map_err(|e| normalize_mongo_error(e))?;
-
-            let json_doc = bson_to_json(&Bson::Document(doc));
-            rows.push(json_doc);
-        }
-
-        let duration = start.elapsed();
         Ok(TableDataResponse {
             data: rows,
             total,
             page: safe_page,
             limit: safe_limit,
-            execution_time_ms: duration.as_millis() as i64,
+            execution_time_ms: start.elapsed().as_millis() as i64,
         })
     }
 
@@ -519,17 +499,7 @@ impl DatabaseDriver for MongoDBDriver {
         filter: Option<String>,
         order_by: Option<String>,
     ) -> Result<TableDataResponse, String> {
-        self.get_table_data(
-            schema,
-            table,
-            page,
-            limit,
-            sort_column,
-            sort_direction,
-            filter,
-            order_by,
-        )
-        .await
+        self.get_table_data(schema, table, page, limit, sort_column, sort_direction, filter, order_by).await
     }
 
     async fn execute_query(&self, query: String) -> Result<QueryResult, String> {
@@ -547,97 +517,32 @@ impl DatabaseDriver for MongoDBDriver {
             .as_object()
             .ok_or_else(|| "[QUERY_ERROR] Query must be a JSON object".to_string())?;
 
-        let mut result_sets = Vec::new();
+        let db_name = obj
+            .get("$db")
+            .and_then(|v| v.as_str())
+            .unwrap_or(&self.default_database);
 
+        // --- find command ---
         if let Some(collection_name) = obj.get("find").and_then(|v| v.as_str()) {
             let filter = obj
                 .get("filter")
-                .and_then(|v| {
-                    mongodb::bson::to_document(v).ok()
-                })
+                .and_then(|v| mongodb::bson::to_document(v).ok())
                 .unwrap_or_default();
+            let sort = obj.get("sort").and_then(|v| mongodb::bson::to_document(v).ok());
+            let limit = obj.get("limit").and_then(|v| v.as_i64()).unwrap_or(100);
+            let skip = obj.get("skip").and_then(|v| v.as_i64()).unwrap_or(0);
 
-            let sort = obj
-                .get("sort")
-                .and_then(|v| mongodb::bson::to_document(v).ok());
-
-            let limit = obj
-                .get("limit")
-                .and_then(|v| v.as_i64())
-                .unwrap_or(100);
-
-            let skip = obj
-                .get("skip")
-                .and_then(|v| v.as_i64())
-                .unwrap_or(0);
-
-            let db_name = obj
-                .get("$db")
-                .and_then(|v| v.as_str())
-                .unwrap_or(&self.default_database);
-
-            let db = self.client.database(db_name);
-            let collection = db.collection::<Document>(collection_name);
-
-            let mut find_builder = collection.find(filter);
-            find_builder = find_builder.skip(skip as u64);
-            find_builder = find_builder.limit(limit);
+            let collection = self.client.database(db_name).collection::<Document>(collection_name);
+            let mut builder = collection.find(filter).skip(skip as u64).limit(limit);
             if let Some(sort_doc) = sort {
-                find_builder = find_builder.sort(sort_doc);
+                builder = builder.sort(sort_doc);
             }
 
-            let mut cursor = find_builder
-                .await
-                .map_err(|e| normalize_mongo_error(e))?;
-
-            let mut data = Vec::new();
-            let mut columns_set = HashSet::new();
-
-            while cursor
-                .advance()
-                .await
-                .map_err(|e| normalize_mongo_error(e))?
-            {
-                let doc = cursor
-                    .deserialize_current()
-                    .map_err(|e| normalize_mongo_error(e))?;
-
-                for key in doc.keys() {
-                    columns_set.insert(key.clone());
-                }
-
-                let json_doc = bson_to_json(&Bson::Document(doc));
-                data.push(json_doc);
-            }
-
-            let columns: Vec<QueryColumn> = columns_set
-                .into_iter()
-                .map(|name| QueryColumn {
-                    name,
-                    r#type: "mixed".to_string(),
-                })
-                .collect();
-
-            let duration = start.elapsed();
-            result_sets.push(SingleResultSet {
-                data: data.clone(),
-                row_count: data.len() as i64,
-                columns,
-                index: 0,
-                statement: trimmed.to_string(),
-            });
-
-            return Ok(QueryResult {
-                data,
-                row_count: result_sets[0].row_count,
-                columns: result_sets[0].columns.clone(),
-                time_taken_ms: duration.as_millis() as i64,
-                success: true,
-                error: None,
-                result_sets: Some(result_sets),
-            });
+            let cursor = builder.await.map_err(normalize_mongo_error)?;
+            return self.cursor_to_query_result(cursor, trimmed, start).await;
         }
 
+        // --- aggregate command ---
         if let Some(collection_name) = obj.get("aggregate").and_then(|v| v.as_str()) {
             let pipeline = obj
                 .get("pipeline")
@@ -652,65 +557,9 @@ impl DatabaseDriver for MongoDBDriver {
                 })
                 .collect::<Result<Vec<_>, _>>()?;
 
-            let db_name = obj
-                .get("$db")
-                .and_then(|v| v.as_str())
-                .unwrap_or(&self.default_database);
-
-            let db = self.client.database(db_name);
-            let collection = db.collection::<Document>(collection_name);
-
-            let mut cursor = collection
-                .aggregate(bson_pipeline)
-                .await
-                .map_err(|e| normalize_mongo_error(e))?;
-
-            let mut data = Vec::new();
-            let mut columns_set = HashSet::new();
-
-            while cursor
-                .advance()
-                .await
-                .map_err(|e| normalize_mongo_error(e))?
-            {
-                let doc = cursor
-                    .deserialize_current()
-                    .map_err(|e| normalize_mongo_error(e))?;
-
-                for key in doc.keys() {
-                    columns_set.insert(key.clone());
-                }
-
-                let json_doc = bson_to_json(&Bson::Document(doc));
-                data.push(json_doc);
-            }
-
-            let columns: Vec<QueryColumn> = columns_set
-                .into_iter()
-                .map(|name| QueryColumn {
-                    name,
-                    r#type: "mixed".to_string(),
-                })
-                .collect();
-
-            let duration = start.elapsed();
-            result_sets.push(SingleResultSet {
-                data: data.clone(),
-                row_count: data.len() as i64,
-                columns,
-                index: 0,
-                statement: trimmed.to_string(),
-            });
-
-            return Ok(QueryResult {
-                data,
-                row_count: result_sets[0].row_count,
-                columns: result_sets[0].columns.clone(),
-                time_taken_ms: duration.as_millis() as i64,
-                success: true,
-                error: None,
-                result_sets: Some(result_sets),
-            });
+            let collection = self.client.database(db_name).collection::<Document>(collection_name);
+            let cursor = collection.aggregate(bson_pipeline).await.map_err(normalize_mongo_error)?;
+            return self.cursor_to_query_result(cursor, trimmed, start).await;
         }
 
         Err("[QUERY_ERROR] Unsupported query format. Use {\"find\": \"collection\", ...} or {\"aggregate\": \"collection\", \"pipeline\": [...]}" .to_string())
@@ -722,38 +571,24 @@ impl DatabaseDriver for MongoDBDriver {
             .unwrap_or_else(|| self.default_database.clone());
 
         let db = self.client.database(&db_name);
-        let mut cursor = db
-            .list_collections()
-            .await
-            .map_err(|e| normalize_mongo_error(e))?;
+        let mut cursor = db.list_collections().await.map_err(normalize_mongo_error)?;
 
         let mut tables = Vec::new();
-        while cursor
-            .advance()
-            .await
-            .map_err(|e| normalize_mongo_error(e))?
-        {
-            let collection = cursor
-                .deserialize_current()
-                .map_err(|e| normalize_mongo_error(e))?;
+        while cursor.advance().await.map_err(normalize_mongo_error)? {
+            let collection = cursor.deserialize_current().map_err(normalize_mongo_error)?;
 
             let columns = self
                 .infer_collection_schema(&db_name, &collection.name)
                 .await
-                .unwrap_or_default();
-
-            let column_schemas: Vec<ColumnSchema> = columns
+                .unwrap_or_default()
                 .into_iter()
-                .map(|c| ColumnSchema {
-                    name: c.name,
-                    r#type: c.r#type,
-                })
+                .map(|c| ColumnSchema { name: c.name, r#type: c.r#type })
                 .collect();
 
             tables.push(TableSchema {
                 schema: db_name.clone(),
                 name: collection.name,
-                columns: column_schemas,
+                columns,
             });
         }
 
