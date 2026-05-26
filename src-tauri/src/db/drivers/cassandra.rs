@@ -5,6 +5,7 @@ use crate::models::{
     TableMetadata, TableSchema, TableStructure,
 };
 use async_trait::async_trait;
+use chrono::{NaiveDate, NaiveTime, TimeZone, Utc};
 use scylla::client::session::Session;
 use scylla::client::session_builder::SessionBuilder;
 use scylla::cluster::metadata::{CollectionType, ColumnType, NativeType};
@@ -39,6 +40,51 @@ fn normalize_cassandra_error(e: impl std::fmt::Display) -> String {
     } else {
         format!("[CASSANDRA_ERROR] {}", msg)
     }
+}
+
+/// Convert big-endian two's complement bytes to a signed decimal string.
+fn bytes_to_signed_bigint_string(bytes: &[u8]) -> String {
+    if bytes.is_empty() {
+        return "0".to_string();
+    }
+    let negative = bytes[0] & 0x80 != 0;
+    if negative {
+        // Two's complement: invert all bytes and add 1
+        let mut inverted: Vec<u8> = bytes.iter().map(|b| !b).collect();
+        let mut carry = 1u8;
+        for i in (0..inverted.len()).rev() {
+            let (sum, overflow) = inverted[i].overflowing_add(carry);
+            inverted[i] = sum;
+            carry = overflow as u8;
+        }
+        let num = unsigned_bytes_to_decimal(&inverted);
+        format!("-{}", num)
+    } else {
+        unsigned_bytes_to_decimal(bytes)
+    }
+}
+
+fn unsigned_bytes_to_decimal(bytes: &[u8]) -> String {
+    if bytes.is_empty() || bytes.iter().all(|&b| b == 0) {
+        return "0".to_string();
+    }
+    // Simple base-256 to base-10 conversion
+    let mut digits: Vec<u8> = bytes.to_vec();
+    let mut result = String::new();
+    while !digits.is_empty() && !digits.iter().all(|&b| b == 0) {
+        let mut remainder = 0u16;
+        for d in digits.iter_mut() {
+            let val = (remainder << 8) | (*d as u16);
+            *d = (val / 10) as u8;
+            remainder = val % 10;
+        }
+        result.push((b'0' + remainder as u8) as char);
+        // Remove leading zeros
+        while digits.first() == Some(&0) {
+            digits.remove(0);
+        }
+    }
+    result.chars().rev().collect()
 }
 
 fn column_type_to_string(ct: &ColumnType) -> String {
@@ -113,10 +159,41 @@ fn cql_value_to_json(val: Option<&CqlValue>) -> Value {
             CqlValue::Float(f) => serde_json::json!(*f),
             CqlValue::Double(d) => serde_json::json!(*d),
             CqlValue::Uuid(u) => Value::String(u.to_string()),
-            CqlValue::Timeuuid(u) => Value::String(format!("{:?}", u)),
-            CqlValue::Timestamp(dt) => serde_json::json!(dt.0),
-            CqlValue::Date(d) => serde_json::json!(d.0),
-            CqlValue::Time(t) => serde_json::json!(t.0),
+            CqlValue::Timeuuid(u) => Value::String(format!("{}", u)),
+            CqlValue::Timestamp(dt) => {
+                let millis = dt.0;
+                let secs = millis / 1000;
+                let nanos = ((millis % 1000) * 1_000_000) as u32;
+                let dt = Utc.timestamp_opt(secs, nanos).single();
+                match dt {
+                    Some(dt) => Value::String(dt.format("%Y-%m-%d %H:%M:%S%.3f+00:00").to_string()),
+                    None => serde_json::json!(millis),
+                }
+            }
+            CqlValue::Date(d) => {
+                let days = d.0 as i64;
+                let epoch = NaiveDate::from_ymd_opt(1970, 1, 1).unwrap();
+                let date = epoch + chrono::Duration::days(days);
+                Value::String(date.format("%Y-%m-%d").to_string())
+            }
+            CqlValue::Time(t) => {
+                let nanos = t.0;
+                let total_secs = nanos / 1_000_000_000;
+                let hours = total_secs / 3600;
+                let minutes = (total_secs % 3600) / 60;
+                let seconds = total_secs % 60;
+                let subsec_nanos = (nanos % 1_000_000_000) as u32;
+                let time = NaiveTime::from_hms_nano_opt(
+                    hours as u32,
+                    minutes as u32,
+                    seconds as u32,
+                    subsec_nanos,
+                );
+                match time {
+                    Some(t) => Value::String(t.format("%H:%M:%S%.9f").to_string()),
+                    None => serde_json::json!(nanos),
+                }
+            }
             CqlValue::Blob(b) => Value::String(base64::Engine::encode(
                 &base64::engine::general_purpose::STANDARD,
                 b,
@@ -150,8 +227,28 @@ fn cql_value_to_json(val: Option<&CqlValue>) -> Value {
                     .collect();
                 Value::Object(map)
             }
-            CqlValue::Decimal(d) => serde_json::json!(format!("{:?}", d)),
-            CqlValue::Varint(v) => serde_json::json!(format!("{:?}", v)),
+            CqlValue::Decimal(d) => {
+                let (bytes, scale) = d.as_signed_be_bytes_slice_and_exponent();
+                let unscaled = bytes_to_signed_bigint_string(bytes);
+                if scale == 0 {
+                    Value::String(unscaled)
+                } else {
+                    // Insert decimal point
+                    let negative = unscaled.starts_with('-');
+                    let digits = if negative { &unscaled[1..] } else { &unscaled };
+                    let scale = scale as usize;
+                    if scale >= digits.len() {
+                        let zeros = "0".repeat(scale - digits.len());
+                        Value::String(format!("{}0.{}{}", if negative { "-" } else { "" }, zeros, digits))
+                    } else {
+                        let (int_part, frac_part) = digits.split_at(digits.len() - scale);
+                        Value::String(format!("{}{}.{}", if negative { "-" } else { "" }, int_part, frac_part))
+                    }
+                }
+            }
+            CqlValue::Varint(v) => {
+                Value::String(bytes_to_signed_bigint_string(v.as_signed_bytes_be_slice()))
+            }
             CqlValue::Duration(d) => serde_json::json!({
                 "months": d.months,
                 "days": d.days,
@@ -596,9 +693,23 @@ impl DatabaseDriver for CassandraDriver {
             .await
             .map_err(|e| format!("[QUERY_ERROR] {}", e))?;
 
-        let rows_result = result
-            .into_rows_result()
-            .map_err(|e| format!("[QUERY_ERROR] {}", e))?;
+        let duration = start.elapsed();
+
+        let rows_result = match result.into_rows_result() {
+            Ok(r) => r,
+            Err(_) => {
+                // DDL/DML statements that don't return rows
+                return Ok(QueryResult {
+                    data: vec![],
+                    row_count: 0,
+                    columns: vec![],
+                    time_taken_ms: duration.as_millis() as i64,
+                    success: true,
+                    error: None,
+                    result_sets: None,
+                });
+            }
+        };
 
         let column_specs: Vec<(String, String)> = rows_result
             .column_specs()
@@ -630,7 +741,6 @@ impl DatabaseDriver for CassandraDriver {
         }
 
         let row_count = data.len() as i64;
-        let duration = start.elapsed();
 
         Ok(QueryResult {
             data,
@@ -713,12 +823,25 @@ impl CassandraDriver {
                 Some(CqlValue::Text(s)) => s.clone(),
                 _ => "unknown".to_string(),
             };
+            // Extract target column from options map (key: "target")
+            let index_columns = match row.columns.get(2).and_then(|c| c.as_ref()) {
+                Some(CqlValue::Map(pairs)) => {
+                    pairs.iter()
+                        .find(|(k, _)| matches!(k, CqlValue::Text(s) if s == "target"))
+                        .and_then(|(_, v)| match v {
+                            CqlValue::Text(target) => Some(vec![target.clone()]),
+                            _ => None,
+                        })
+                        .unwrap_or_default()
+                }
+                _ => vec![],
+            };
 
             indexes.push(IndexInfo {
                 name: index_name,
                 unique: false,
                 index_type: Some(kind),
-                columns: vec![],
+                columns: index_columns,
             });
         }
 
@@ -730,20 +853,70 @@ impl CassandraDriver {
         keyspace: &str,
         table: &str,
     ) -> Result<CassandraTableExtra, String> {
-        let result = self
+        // Get partition key and clustering columns
+        let columns_result = self
             .session
             .query_unpaged(
-                "SELECT bloom_filter_fp_chance, gc_grace_seconds, default_time_to_live FROM system_schema.tables WHERE keyspace_name = ? AND table_name = ?",
+                "SELECT column_name, kind, position FROM system_schema.columns WHERE keyspace_name = ? AND table_name = ?",
                 (keyspace, table),
             )
             .await
             .map_err(|e| normalize_cassandra_error(e))?;
 
-        let rows_result = result
+        let columns_rows = columns_result
             .into_rows_result()
             .map_err(|e| normalize_cassandra_error(e))?;
 
-        let mut iter = rows_result
+        let mut partition_key: Vec<(i32, String)> = Vec::new();
+        let mut clustering_columns: Vec<(i32, String)> = Vec::new();
+
+        let mut col_iter = columns_rows
+            .rows::<scylla::value::Row>()
+            .map_err(|e| normalize_cassandra_error(e))?;
+
+        while let Some(row) = col_iter.next() {
+            let row = row.map_err(|e| normalize_cassandra_error(e))?;
+            let column_name = match row.columns.first().and_then(|c| c.as_ref()) {
+                Some(CqlValue::Text(s)) => s.clone(),
+                _ => continue,
+            };
+            let kind = match row.columns.get(1).and_then(|c| c.as_ref()) {
+                Some(CqlValue::Text(s)) => s.clone(),
+                _ => continue,
+            };
+            let position = match row.columns.get(2).and_then(|c| c.as_ref()) {
+                Some(CqlValue::Int(n)) => *n,
+                _ => 0,
+            };
+
+            match kind.as_str() {
+                "partition_key" => partition_key.push((position, column_name)),
+                "clustering" => clustering_columns.push((position, column_name)),
+                _ => {}
+            }
+        }
+
+        partition_key.sort_by_key(|k| k.0);
+        clustering_columns.sort_by_key(|k| k.0);
+
+        let pk_names: Vec<String> = partition_key.iter().map(|(_, n)| n.clone()).collect();
+        let ck_names: Vec<String> = clustering_columns.iter().map(|(_, n)| n.clone()).collect();
+
+        // Get table properties
+        let props_result = self
+            .session
+            .query_unpaged(
+                "SELECT bloom_filter_fp_chance, gc_grace_seconds, default_time_to_live, compaction, caching FROM system_schema.tables WHERE keyspace_name = ? AND table_name = ?",
+                (keyspace, table),
+            )
+            .await
+            .map_err(|e| normalize_cassandra_error(e))?;
+
+        let props_rows = props_result
+            .into_rows_result()
+            .map_err(|e| normalize_cassandra_error(e))?;
+
+        let mut iter = props_rows
             .rows::<scylla::value::Row>()
             .map_err(|e| normalize_cassandra_error(e))?;
 
@@ -764,13 +937,31 @@ impl CassandraDriver {
                 Some(CqlValue::BigInt(n)) => *n,
                 _ => 0,
             };
+            let compaction_strategy = match row.columns.get(3).and_then(|c| c.as_ref()) {
+                Some(CqlValue::Map(pairs)) => {
+                    pairs.iter()
+                        .find(|(k, _)| matches!(k, CqlValue::Text(s) if s == "class"))
+                        .and_then(|(_, v)| match v {
+                            CqlValue::Text(s) => {
+                                Some(s.rsplit('.').next().unwrap_or(s).to_string())
+                            }
+                            _ => None,
+                        })
+                        .unwrap_or_else(|| "unknown".to_string())
+                }
+                _ => "unknown".to_string(),
+            };
+            let caching = match row.columns.get(4).and_then(|c| c.as_ref()) {
+                Some(v) => cql_value_to_json(Some(v)),
+                None => serde_json::Value::Null,
+            };
 
             Ok(CassandraTableExtra {
-                partition_key: vec![],
-                clustering_columns: vec![],
-                compaction_strategy: "unknown".to_string(),
+                partition_key: pk_names,
+                clustering_columns: ck_names,
+                compaction_strategy,
                 bloom_filter_fp_chance,
-                caching: serde_json::Value::Null,
+                caching,
                 gc_grace_seconds,
                 default_time_to_live,
             })
