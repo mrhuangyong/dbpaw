@@ -36,9 +36,7 @@ export function LanguageSelector() {
             <SelectItem key={lang} value={lang}>
               {lang === "en"
                 ? t("settings.language.en")
-                : lang === "zh"
-                  ? t("settings.language.zh")
-                  : t("settings.language.ja")}
+                : t("settings.language.zh")}
             </SelectItem>
           ))}
         </SelectContent>
