@@ -310,6 +310,8 @@ export default function App() {
   const [isCloseSaveDialogOpen, setIsCloseSaveDialogOpen] = useState(false);
   const [sidebarLayout, setSidebarLayout] = useState<SidebarLayoutMode>("tabs");
   const [showColumnComments, setShowColumnComments] = useState(false);
+  const [showRowNumbers, setShowRowNumbers] = useState(true);
+  const [showZebraStripes, setShowZebraStripes] = useState(false);
   const closeSaveCompletedRef = useRef(false);
   const unsavedConfirmActionRef = useRef<"save" | "discard" | null>(null);
   const schemaOverviewRequestKeysRef = useRef<Map<string, string>>(new Map());
@@ -349,6 +351,8 @@ export default function App() {
       },
     );
     void getSetting("showColumnComments", false).then(setShowColumnComments);
+    void getSetting("showRowNumbers", true).then(setShowRowNumbers);
+    void getSetting("showZebraStripes", false).then(setShowZebraStripes);
   }, []);
 
   const sensors = useSensors(
@@ -2188,6 +2192,8 @@ export default function App() {
                                 : undefined
                             }
                             showColumnComments={showColumnComments}
+                            showRowNumbers={showRowNumbers}
+                            showZebraStripes={showZebraStripes}
                           />
                         ) : tab.type === "routine" &&
                           tab.connectionId !== undefined &&
@@ -2440,6 +2446,10 @@ export default function App() {
             onSidebarLayoutChange={setSidebarLayout}
             showColumnComments={showColumnComments}
             onShowColumnCommentsChange={setShowColumnComments}
+            showRowNumbers={showRowNumbers}
+            onShowRowNumbersChange={setShowRowNumbers}
+            showZebraStripes={showZebraStripes}
+            onShowZebraStripesChange={setShowZebraStripes}
           />
         </Suspense>
       )}

@@ -65,6 +65,10 @@ interface SettingsDialogProps {
   onSidebarLayoutChange?: (layout: "tabs" | "tree") => void;
   showColumnComments?: boolean;
   onShowColumnCommentsChange?: (v: boolean) => void;
+  showRowNumbers?: boolean;
+  onShowRowNumbersChange?: (v: boolean) => void;
+  showZebraStripes?: boolean;
+  onShowZebraStripesChange?: (v: boolean) => void;
 }
 
 type SettingsSection = "general" | "layout" | "ai" | "shortcuts" | "about";
@@ -236,6 +240,10 @@ export function SettingsDialog({
   onSidebarLayoutChange,
   showColumnComments: showColumnCommentsProp = false,
   onShowColumnCommentsChange,
+  showRowNumbers: showRowNumbersProp = true,
+  onShowRowNumbersChange,
+  showZebraStripes: showZebraStripesProp = false,
+  onShowZebraStripesChange,
 }: SettingsDialogProps) {
   const { t } = useTranslation();
   const {
@@ -252,6 +260,8 @@ export function SettingsDialog({
     useState<SettingsSection>("general");
   const [autoUpdate, setAutoUpdate] = useState(true);
   const [showColumnComments, setShowColumnComments] = useState(false);
+  const [showRowNumbers, setShowRowNumbers] = useState(true);
+  const [showZebraStripes, setShowZebraStripes] = useState(false);
   const [checking, setChecking] = useState(false);
   const [updateTaskState, setUpdateTaskState] = useState<UpdateTaskState>(
     getUpdateTaskSnapshot().state,
@@ -311,6 +321,8 @@ export function SettingsDialog({
       setEditorFontSizeInput(String(editorFontSizePx));
       setLayoutMode(sidebarLayout);
       setShowColumnComments(showColumnCommentsProp);
+      setShowRowNumbers(showRowNumbersProp);
+      setShowZebraStripes(showZebraStripesProp);
       getSetting("autoUpdate", true).then(setAutoUpdate);
       api.ai.providers
         .list()
@@ -333,6 +345,8 @@ export function SettingsDialog({
     editorFontSizePx,
     open,
     showColumnCommentsProp,
+    showRowNumbersProp,
+    showZebraStripesProp,
     sidebarLayout,
     t,
   ]);
@@ -425,6 +439,18 @@ export function SettingsDialog({
     setShowColumnComments(checked);
     await saveSetting("showColumnComments", checked);
     onShowColumnCommentsChange?.(checked);
+  };
+
+  const toggleShowRowNumbers = async (checked: boolean) => {
+    setShowRowNumbers(checked);
+    await saveSetting("showRowNumbers", checked);
+    onShowRowNumbersChange?.(checked);
+  };
+
+  const toggleShowZebraStripes = async (checked: boolean) => {
+    setShowZebraStripes(checked);
+    await saveSetting("showZebraStripes", checked);
+    onShowZebraStripesChange?.(checked);
   };
 
   const handleSaveProvider = async () => {
@@ -775,6 +801,36 @@ export function SettingsDialog({
                     <Switch
                       checked={showColumnComments}
                       onCheckedChange={toggleShowColumnComments}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <Label className="text-base">
+                        {t("settings.dataGrid.showRowNumbers")}
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        {t("settings.dataGrid.showRowNumbersDescription")}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={showRowNumbers}
+                      onCheckedChange={toggleShowRowNumbers}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <Label className="text-base">
+                        {t("settings.dataGrid.showZebraStripes")}
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        {t("settings.dataGrid.showZebraStripesDescription")}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={showZebraStripes}
+                      onCheckedChange={toggleShowZebraStripes}
                     />
                   </div>
                 </div>

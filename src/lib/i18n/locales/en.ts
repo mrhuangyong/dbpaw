@@ -90,7 +90,6 @@ export const en = {
       description: "Choose your preferred language",
       en: "English",
       zh: "简体中文",
-      ja: "日本語",
     },
     appearance: {
       title: "Appearance",
@@ -113,6 +112,10 @@ export const en = {
       showColumnComments: "Show Column Comments",
       showColumnCommentsDescription:
         "Display column comments in small text below the column name in table headers",
+      showRowNumbers: "Show Row Numbers",
+      showRowNumbersDescription: "Display row number column on the left side of the table",
+      showZebraStripes: "Show Zebra Stripes",
+      showZebraStripesDescription: "Alternate row background colors for better readability",
       filter: {
         title: "Filter",
       },

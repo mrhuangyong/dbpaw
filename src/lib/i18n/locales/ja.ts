@@ -115,6 +115,10 @@ export const ja: Translations = {
       showColumnComments: "カラムコメントを表示",
       showColumnCommentsDescription:
         "テーブルヘッダーの列名の下に小さなテキストでカラムコメントを表示します",
+      showRowNumbers: "行番号を表示",
+      showRowNumbersDescription: "テーブルの左側に行番号列を表示します",
+      showZebraStripes: "ゼブラストライプを表示",
+      showZebraStripesDescription: "奇数行と偶数行で背景色を変えて読みやすくします",
       filter: {
         title: "フィルター",
       },

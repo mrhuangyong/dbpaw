@@ -91,7 +91,6 @@ export const zh: Translations = {
       description: "选择你偏好的语言",
       en: "English",
       zh: "简体中文",
-      ja: "日本語",
     },
     appearance: {
       title: "外观",
@@ -113,6 +112,10 @@ export const zh: Translations = {
       showColumnComments: "显示字段注释",
       showColumnCommentsDescription:
         "在表头列名下方以小字体显示字段的 Comment 注释",
+      showRowNumbers: "显示行号",
+      showRowNumbersDescription: "在表格左侧显示行号列",
+      showZebraStripes: "显示斑马纹",
+      showZebraStripesDescription: "奇偶行使用不同背景色，便于阅读",
       filter: {
         title: "过滤器",
       },

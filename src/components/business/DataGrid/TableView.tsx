@@ -155,6 +155,8 @@ interface TableViewProps {
   };
   isLoading?: boolean;
   showColumnComments?: boolean;
+  showRowNumbers?: boolean;
+  showZebraStripes?: boolean;
 }
 
 export function TableView({
@@ -179,6 +181,8 @@ export function TableView({
   tableContext,
   isLoading,
   showColumnComments = false,
+  showRowNumbers = true,
+  showZebraStripes = false,
 }: TableViewProps) {
   const { t } = useTranslation();
   const PAGE_SIZE_OPTIONS = ["10", "50", "100", "200", "500", "1000"] as const;
@@ -2289,7 +2293,7 @@ export function TableView({
         {viewMode === "column" ? (
           <table className="border-collapse w-auto">
             <colgroup>
-              <col style={{ width: 50 }} />
+              {showRowNumbers && <col style={{ width: 50 }} />}
               <col />
               {currentData.map((_, idx) => (
                 <col key={idx} />
@@ -2297,9 +2301,11 @@ export function TableView({
             </colgroup>
             <thead className="bg-muted/90 sticky top-0 z-10">
               <tr>
-                <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground border-b border-r border-border">
-                  #
-                </th>
+                {showRowNumbers && (
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground border-b border-r border-border">
+                    #
+                  </th>
+                )}
                 <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground border-b border-r border-border">
                   Column
                 </th>
@@ -2317,11 +2323,16 @@ export function TableView({
               {columns.map((column, colIndex) => (
                 <tr
                   key={column}
-                  className="hover:bg-muted/50 border-b border-border"
+                  className={[
+                    "hover:bg-muted/50 border-b border-border",
+                    showZebraStripes && colIndex % 2 === 1 ? "bg-muted/30" : "",
+                  ].filter(Boolean).join(" ")}
                 >
-                  <td className="px-4 py-2 text-xs text-muted-foreground border-r border-border">
-                    {colIndex + 1}
-                  </td>
+                  {showRowNumbers && (
+                    <td className="px-4 py-2 text-xs text-muted-foreground border-r border-border">
+                      {colIndex + 1}
+                    </td>
+                  )}
                   <td className="px-4 py-2 text-xs font-semibold text-foreground border-r border-border bg-muted/30">
                     <div>{column}</div>
                     {showColumnComments && columnComments[column] && (
@@ -2453,7 +2464,7 @@ export function TableView({
             }}
           >
             <colgroup>
-              <col className="w-12" style={{ width: INDEX_COL_WIDTH }} />
+              {showRowNumbers && <col className="w-12" style={{ width: INDEX_COL_WIDTH }} />}
               {columns.map((column) => (
                 <col
                   key={column}
@@ -2466,9 +2477,11 @@ export function TableView({
             </colgroup>
             <thead className="bg-muted/90 sticky top-0 z-10">
               <tr>
-                <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground border-b border-r border-border w-12">
-                  #
-                </th>
+                {showRowNumbers && (
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground border-b border-r border-border w-12">
+                    #
+                  </th>
+                )}
                 {columns.map((column) => {
                   const isSorted = activeSortColumn === column;
                   const direction = isSorted ? activeSortDirection : undefined;
@@ -2555,21 +2568,26 @@ export function TableView({
                 return (
                   <ContextMenu key={rowIndex}>
                     <ContextMenuTrigger asChild>
-                      <tr className="hover:bg-muted/50 border-b border-border group">
-                        <td
-                          className={[
-                            "px-4 py-2 text-xs text-muted-foreground border-r border-border cursor-pointer select-none",
-                            isRowSelected
-                              ? "bg-accent text-accent-foreground"
-                              : "",
-                          ]
-                            .filter(Boolean)
-                            .join(" ")}
-                          onMouseDown={(e) => handleIndexMouseDown(e, rowIndex)}
-                          onMouseEnter={() => handleIndexMouseEnter(rowIndex)}
-                        >
-                          {startIndex + rowIndex + 1}
-                        </td>
+                      <tr className={[
+                        "hover:bg-muted/50 border-b border-border group",
+                        showZebraStripes && rowIndex % 2 === 1 ? "bg-muted/30" : "",
+                      ].filter(Boolean).join(" ")}>
+                        {showRowNumbers && (
+                          <td
+                            className={[
+                              "px-4 py-2 text-xs text-muted-foreground border-r border-border cursor-pointer select-none",
+                              isRowSelected
+                                ? "bg-accent text-accent-foreground"
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
+                            onMouseDown={(e) => handleIndexMouseDown(e, rowIndex)}
+                            onMouseEnter={() => handleIndexMouseEnter(rowIndex)}
+                          >
+                            {startIndex + rowIndex + 1}
+                          </td>
+                        )}
                         {columns.map((column, colIndex) => {
                           const modified = isCellModified(rowIndex, column);
                           const displayValue = getCellDisplayValue(
