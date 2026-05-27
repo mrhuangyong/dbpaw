@@ -217,6 +217,13 @@ pub fn normalize_connection_form(mut form: ConnectionForm) -> Result<ConnectionF
         if form.host.is_none() {
             return Err("[VALIDATION_ERROR] host cannot be empty".to_string());
         }
+    } else if driver == "db2" {
+        if form.host.is_none() {
+            return Err("[VALIDATION_ERROR] host cannot be empty".to_string());
+        }
+        if form.database.is_none() {
+            return Err("[VALIDATION_ERROR] database cannot be empty".to_string());
+        }
     } else if form.host.is_none() {
         return Err("[VALIDATION_ERROR] host cannot be empty".to_string());
     }

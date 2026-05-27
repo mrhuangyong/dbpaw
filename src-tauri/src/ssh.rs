@@ -18,6 +18,7 @@ fn default_target_port(driver: &str) -> i64 {
     match driver {
         "mssql" => 1433,
         "oracle" => 1521,
+        "db2" => 50000,
         "clickhouse" => 9000,
         "redis" => 6379,
         "elasticsearch" => 9200,

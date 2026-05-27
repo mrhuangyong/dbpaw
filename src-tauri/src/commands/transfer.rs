@@ -716,6 +716,7 @@ fn import_transaction_sql<'a>(
             "ROLLBACK TRANSACTION",
         )),
         "oracle" => Ok(("SELECT 1 FROM DUAL", "COMMIT", "ROLLBACK")),
+        "db2" => Ok(("BEGIN", "COMMIT", "ROLLBACK")),
         "clickhouse" => {
             Err("[UNSUPPORTED] Driver clickhouse is read-only in this import flow".to_string())
         }
