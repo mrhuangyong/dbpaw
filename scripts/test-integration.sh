@@ -85,6 +85,32 @@ run_integration_test() {
     --test "${test_name}" -- ${ignored_flag} --nocapture --test-threads=1
 }
 
+run_db2() {
+  echo "=== Db2 ==="
+  local container="db2_it"
+  local password="testpass"
+  local dbname="testdb"
+
+  docker rm -f "$container" 2>/dev/null || true
+  docker run -d --name "$container" \
+    -e LICENSE=accept \
+    -e DB2INST1_PASSWORD="$password" \
+    -e DBNAME="$dbname" \
+    -p 50000:50000 \
+    icr.io/db2_community/db2:11.5.9.0
+
+  echo "Waiting for Db2 to initialize (this takes 60-90 seconds)..."
+  sleep 90
+
+  export IT_DB=db2
+  export DB2_DATABASE="$dbname"
+  export DB2_USERNAME="db2inst1"
+  export DB2_PASSWORD="$password"
+  run_integration_test "db2_integration"
+
+  docker rm -f "$container" 2>/dev/null || true
+}
+
 case "${it_db}" in
   mysql)
     run_integration_test "mysql_integration"
@@ -147,6 +173,9 @@ case "${it_db}" in
   cassandra)
     run_integration_test "cassandra_integration"
     ;;
+  db2)
+    run_db2
+    ;;
   all)
     run_integration_test "mysql_integration"
     run_integration_test "mysql_command_integration"
@@ -174,9 +203,10 @@ case "${it_db}" in
     run_integration_test "elasticsearch_integration"
     run_integration_test "mongodb_integration"
     run_integration_test "cassandra_integration"
+    run_db2
     ;;
   *)
-    echo "[error] Invalid IT_DB='${it_db}'. Expected one of: mysql|starrocks|doris|mariadb|postgres|clickhouse|mssql|duckdb|sqlite|oracle|redis|elasticsearch|mongodb|cassandra|all"
+    echo "[error] Invalid IT_DB='${it_db}'. Expected one of: mysql|starrocks|doris|mariadb|postgres|clickhouse|mssql|duckdb|sqlite|oracle|redis|elasticsearch|mongodb|cassandra|db2|all"
     exit 1
     ;;
 esac
