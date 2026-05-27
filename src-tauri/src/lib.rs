@@ -150,6 +150,7 @@ pub fn run() {
             commands::connection::create_connection,
             commands::connection::update_connection,
             commands::connection::delete_connection,
+            commands::connection::import_connections,
             commands::metadata::list_tables,
             commands::metadata::list_routines,
             commands::metadata::get_table_structure,

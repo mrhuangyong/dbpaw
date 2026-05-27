@@ -1025,3 +1025,19 @@ mod tests {
         assert!(err.contains("does not support charset option"));
     }
 }
+
+#[tauri::command]
+pub async fn import_connections(
+    state: State<'_, AppState>,
+    file_path: String,
+) -> Result<crate::import::ImportResult, String> {
+    let local_db = {
+        let lock = state.local_db.lock().await;
+        lock.clone()
+    };
+    if let Some(db) = local_db {
+        crate::import::import_from_file(&file_path, &db).await
+    } else {
+        Err("Local DB not initialized".to_string())
+    }
+}
