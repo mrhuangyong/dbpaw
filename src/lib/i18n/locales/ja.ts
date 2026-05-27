@@ -402,6 +402,7 @@ export const ja: Translations = {
       importSqlReadOnly: "SQL をインポート（読み取り専用で未対応）",
       exportTable: "エクスポート…",
       exportDatabaseSql: "Database SQL をエクスポート",
+      importConnections: "接続をインポート",
     },
     importDialog: {
       title: "SQL をインポート",
@@ -509,6 +510,9 @@ export const ja: Translations = {
         "ファイルブラウザーはデスクトップアプリでのみ利用できます",
       openFileDialogFailed: "ファイルダイアログを開けませんでした",
       readFileFailed: "ファイルの読み取りに失敗しました",
+      importConnectionsSuccess: "{{count}} 件の接続をインポートしました",
+      importConnectionsSkipped: "{{count}} 件の未対応タイプをスキップしました",
+      importConnectionsFailed: "インポートに失敗しました",
     },
   },
   aiSidebar: {
