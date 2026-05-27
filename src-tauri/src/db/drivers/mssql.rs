@@ -1643,9 +1643,14 @@ fn quote_ident_or(name: &str) -> String {
 impl DatabaseDriver for MssqlDriver {
     async fn get_schema_foreign_keys(
         &self,
-        _database: Option<&str>,
+        database: Option<&str>,
     ) -> Result<Vec<SchemaForeignKey>, String> {
-        let sql = "SELECT fk.name, ss.name, ts.name, cp.name, rs.name, tr.name, cr.name, \
+        let schema_filter = database
+            .filter(|s| !s.trim().is_empty())
+            .map(|s| format!("AND ss.name = '{}'", escape_literal(s.trim())));
+
+        let sql = format!(
+            "SELECT fk.name, ss.name, ts.name, cp.name, rs.name, tr.name, cr.name, \
                     fk.update_referential_action_desc, fk.delete_referential_action_desc \
              FROM sys.foreign_keys fk \
              JOIN sys.foreign_key_columns fkc ON fk.object_id = fkc.constraint_object_id \
@@ -1655,13 +1660,18 @@ impl DatabaseDriver for MssqlDriver {
              JOIN sys.tables tr ON fkc.referenced_object_id = tr.object_id \
              JOIN sys.schemas rs ON tr.schema_id = rs.schema_id \
              JOIN sys.columns cr ON fkc.referenced_object_id = cr.object_id AND fkc.referenced_column_id = cr.column_id \
-             ORDER BY fk.name, fkc.constraint_column_id";
-        let rows = self.fetch_rows(sql).await?;
+             {} \
+             ORDER BY fk.name, fkc.constraint_column_id",
+            schema_filter.unwrap_or_default()
+        );
+        let rows = self.fetch_rows(&sql).await?;
 
         let mut foreign_keys = Vec::new();
         for row in rows {
             let source_schema = Self::parse_string(&row, 1);
             let target_schema = Self::parse_string(&row, 4);
+            let on_update_raw = Self::parse_string(&row, 7);
+            let on_delete_raw = Self::parse_string(&row, 8);
             foreign_keys.push(SchemaForeignKey {
                 name: Self::parse_string(&row, 0),
                 source_schema: Some(source_schema),
@@ -1670,8 +1680,8 @@ impl DatabaseDriver for MssqlDriver {
                 target_schema: Some(target_schema),
                 target_table: Self::parse_string(&row, 5),
                 target_column: Self::parse_string(&row, 6),
-                on_update: Some(Self::parse_string(&row, 7)),
-                on_delete: Some(Self::parse_string(&row, 8)),
+                on_update: if on_update_raw.is_empty() { None } else { Some(on_update_raw) },
+                on_delete: if on_delete_raw.is_empty() { None } else { Some(on_delete_raw) },
             });
         }
         Ok(foreign_keys)

@@ -1046,31 +1046,68 @@ impl MysqlDriver {
 impl DatabaseDriver for MysqlDriver {
     async fn get_schema_foreign_keys(
         &self,
-        _database: Option<&str>,
+        database: Option<&str>,
     ) -> Result<Vec<SchemaForeignKey>, String> {
-        let rows = sqlx::query(
-            r#"
-            SELECT
-              kcu.CONSTRAINT_NAME,
-              kcu.TABLE_SCHEMA,
-              kcu.TABLE_NAME,
-              kcu.COLUMN_NAME,
-              kcu.REFERENCED_TABLE_SCHEMA,
-              kcu.REFERENCED_TABLE_NAME,
-              kcu.REFERENCED_COLUMN_NAME,
-              rc.UPDATE_RULE,
-              rc.DELETE_RULE
-            FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
-            JOIN INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS rc
-              ON kcu.CONSTRAINT_NAME = rc.CONSTRAINT_NAME
-              AND kcu.TABLE_SCHEMA = rc.CONSTRAINT_SCHEMA
-            WHERE kcu.REFERENCED_TABLE_NAME IS NOT NULL
-            ORDER BY kcu.CONSTRAINT_NAME, kcu.ORDINAL_POSITION
-            "#,
-        )
-        .fetch_all(&self.pool)
-        .await
-        .map_err(|e| format!("[QUERY_ERROR] {e}"))?;
+        let target_db = if let Some(db) = database.filter(|d| !d.trim().is_empty()) {
+            db.trim().to_string()
+        } else {
+            self.current_database()
+                .await
+                .map_err(|e| format!("[QUERY_ERROR] Failed to get current database: {e}"))?
+                .unwrap_or_default()
+        };
+
+        let rows = if target_db.is_empty() {
+            sqlx::query(
+                r#"
+                SELECT
+                  kcu.CONSTRAINT_NAME,
+                  kcu.TABLE_SCHEMA,
+                  kcu.TABLE_NAME,
+                  kcu.COLUMN_NAME,
+                  kcu.REFERENCED_TABLE_SCHEMA,
+                  kcu.REFERENCED_TABLE_NAME,
+                  kcu.REFERENCED_COLUMN_NAME,
+                  rc.UPDATE_RULE,
+                  rc.DELETE_RULE
+                FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+                JOIN INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS rc
+                  ON kcu.CONSTRAINT_NAME = rc.CONSTRAINT_NAME
+                  AND kcu.TABLE_SCHEMA = rc.CONSTRAINT_SCHEMA
+                WHERE kcu.REFERENCED_TABLE_NAME IS NOT NULL
+                ORDER BY kcu.CONSTRAINT_NAME, kcu.ORDINAL_POSITION
+                "#,
+            )
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| format!("[QUERY_ERROR] {e}"))?
+        } else {
+            sqlx::query(
+                r#"
+                SELECT
+                  kcu.CONSTRAINT_NAME,
+                  kcu.TABLE_SCHEMA,
+                  kcu.TABLE_NAME,
+                  kcu.COLUMN_NAME,
+                  kcu.REFERENCED_TABLE_SCHEMA,
+                  kcu.REFERENCED_TABLE_NAME,
+                  kcu.REFERENCED_COLUMN_NAME,
+                  rc.UPDATE_RULE,
+                  rc.DELETE_RULE
+                FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+                JOIN INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS rc
+                  ON kcu.CONSTRAINT_NAME = rc.CONSTRAINT_NAME
+                  AND kcu.TABLE_SCHEMA = rc.CONSTRAINT_SCHEMA
+                WHERE kcu.REFERENCED_TABLE_NAME IS NOT NULL
+                  AND kcu.TABLE_SCHEMA = ?
+                ORDER BY kcu.CONSTRAINT_NAME, kcu.ORDINAL_POSITION
+                "#,
+            )
+            .bind(&target_db)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| format!("[QUERY_ERROR] {e}"))?
+        };
 
         let mut foreign_keys = Vec::new();
         for row in rows {

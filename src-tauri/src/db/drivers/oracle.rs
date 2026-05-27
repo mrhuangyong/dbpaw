@@ -163,8 +163,10 @@ impl DatabaseDriver for OracleDriver {
     ) -> Result<Vec<SchemaForeignKey>, String> {
         self.run_blocking(move |conn| {
             let sql = "SELECT c.CONSTRAINT_NAME, \
+                            c.OWNER AS SRC_SCHEMA, \
                             cc.TABLE_NAME, \
                             cc.COLUMN_NAME, \
+                            rc.OWNER AS TGT_SCHEMA, \
                             rc.TABLE_NAME AS REF_TABLE, \
                             rcc.COLUMN_NAME AS REF_COLUMN, \
                             c.DELETE_RULE \
@@ -189,20 +191,22 @@ impl DatabaseDriver for OracleDriver {
             for row_result in rows {
                 let row = row_result.map_err(|e| format!("[QUERY_ERROR] {e}"))?;
                 let fk_name: Option<String> = row.get(0).ok().flatten();
-                let src_table: Option<String> = row.get(1).ok().flatten();
-                let src_col: Option<String> = row.get(2).ok().flatten();
-                let tgt_table: Option<String> = row.get(3).ok().flatten();
-                let tgt_col: Option<String> = row.get(4).ok().flatten();
-                let delete_rule: Option<String> = row.get(5).ok().flatten();
+                let src_schema: Option<String> = row.get(1).ok().flatten();
+                let src_table: Option<String> = row.get(2).ok().flatten();
+                let src_col: Option<String> = row.get(3).ok().flatten();
+                let tgt_schema: Option<String> = row.get(4).ok().flatten();
+                let tgt_table: Option<String> = row.get(5).ok().flatten();
+                let tgt_col: Option<String> = row.get(6).ok().flatten();
+                let delete_rule: Option<String> = row.get(7).ok().flatten();
                 if let (Some(name), Some(src_table), Some(src_col), Some(tgt_table), Some(tgt_col)) =
                     (fk_name, src_table, src_col, tgt_table, tgt_col)
                 {
                     foreign_keys.push(SchemaForeignKey {
                         name,
-                        source_schema: None,
+                        source_schema: src_schema,
                         source_table: src_table,
                         source_column: src_col,
-                        target_schema: None,
+                        target_schema: tgt_schema,
                         target_table: tgt_table,
                         target_column: tgt_col,
                         on_update: None,
