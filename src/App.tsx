@@ -102,7 +102,8 @@ interface TabItem {
     | "redis-console"
     | "redis-browser"
     | "redis-server-info"
-    | "elasticsearch-index";
+    | "elasticsearch-index"
+    | "er-diagram";
   title: string;
   connection?: string;
   database?: string;
@@ -218,6 +219,11 @@ const ElasticsearchIndexView = lazy(async () => {
   const mod =
     await import("@/components/business/Elasticsearch/ElasticsearchIndexView");
   return { default: mod.ElasticsearchIndexView };
+});
+
+const ERDiagramView = lazy(async () => {
+  const mod = await import("@/components/business/ERDiagram/ERDiagramView");
+  return { default: mod.default };
 });
 
 function LazyPanelFallback({
@@ -391,6 +397,16 @@ export default function App() {
 
   const renderWindowActions = () => (
     <>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-7 px-2 text-xs"
+        onClick={handleOpenERDiagram}
+        disabled={!activeTabItem?.connectionId || !activeTabItem?.database}
+        title={t("erDiagram.title")}
+      >
+        ER
+      </Button>
       <Button
         variant="ghost"
         size="sm"
@@ -1884,6 +1900,28 @@ export default function App() {
     ? tabs.find((t) => t.id === currentCloseTabId)
     : undefined;
 
+  const handleOpenERDiagram = useCallback(() => {
+    if (!activeTabItem?.connectionId || !activeTabItem?.database) return;
+
+    const tabId = `er-diagram-${activeTabItem.database}`;
+    const existing = tabs.find((t) => t.id === tabId);
+    if (existing) {
+      setActiveTab(tabId);
+      return;
+    }
+
+    const newTab: TabItem = {
+      id: tabId,
+      type: "er-diagram",
+      title: `ER - ${activeTabItem.database}`,
+      connectionId: activeTabItem.connectionId,
+      database: activeTabItem.database,
+      schema: activeTabItem.schema,
+    };
+    setTabs((prev) => [...prev, newTab]);
+    setActiveTab(tabId);
+  }, [activeTabItem, tabs]);
+
   return (
     <div className="h-screen w-screen flex flex-col bg-muted/30">
       {!isFullscreen && (
@@ -2301,6 +2339,19 @@ export default function App() {
                             <ElasticsearchIndexView
                               connectionId={tab.connectionId}
                               index={tab.elasticsearchIndex}
+                            />
+                          </Suspense>
+                        ) : tab.type === "er-diagram" &&
+                          tab.connectionId !== undefined ? (
+                          <Suspense
+                            fallback={
+                              <LazyPanelFallback label={t("erDiagram.loading")} />
+                            }
+                          >
+                            <ERDiagramView
+                              connectionId={tab.connectionId}
+                              database={tab.database}
+                              schema={tab.schema}
                             />
                           </Suspense>
                         ) : tab.type === "create-table" &&

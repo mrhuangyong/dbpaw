@@ -817,4 +817,9 @@ export const zh: Translations = {
       placeholder: "可选 JSON 请求体",
     },
   },
+  erDiagram: {
+    title: "ER 图",
+    noForeignKeys: "未找到外键关系",
+    loading: "加载 ER 图中...",
+  },
 };

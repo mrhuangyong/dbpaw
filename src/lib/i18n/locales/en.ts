@@ -841,6 +841,11 @@ export const en = {
       placeholder: "Optional JSON request body",
     },
   },
+  erDiagram: {
+    title: "ER Diagram",
+    noForeignKeys: "No foreign key relationships found",
+    loading: "Loading ER diagram...",
+  },
 } as const;
 
 type DeepStringify<T> = {
