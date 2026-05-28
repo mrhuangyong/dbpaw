@@ -16,7 +16,7 @@ import {
 // ─── Registry completeness ────────────────────────────────────────────────────
 
 describe("DRIVER_REGISTRY", () => {
-  test("contains all 13 supported drivers", () => {
+  test("contains all 16 supported drivers", () => {
     const ids = DRIVER_REGISTRY.map((d) => d.id);
     expect(ids).toContain("postgres");
     expect(ids).toContain("mysql");
@@ -29,10 +29,12 @@ describe("DRIVER_REGISTRY", () => {
     expect(ids).toContain("clickhouse");
     expect(ids).toContain("mssql");
     expect(ids).toContain("oracle");
+    expect(ids).toContain("db2");
     expect(ids).toContain("redis");
     expect(ids).toContain("elasticsearch");
     expect(ids).toContain("mongodb");
-    expect(DRIVER_REGISTRY).toHaveLength(14);
+    expect(ids).toContain("cassandra");
+    expect(DRIVER_REGISTRY).toHaveLength(16);
   });
 
   test("has no duplicate IDs", () => {
@@ -111,6 +113,8 @@ describe("getDriverConfig", () => {
     expect(getDriverConfig("clickhouse").label).toBe("ClickHouse");
     expect(getDriverConfig("duckdb").label).toBe("DuckDB");
     expect(getDriverConfig("elasticsearch").label).toBe("Elasticsearch");
+    expect(getDriverConfig("db2").label).toBe("IBM Db2");
+    expect(getDriverConfig("cassandra").label).toBe("Cassandra");
   });
 });
 
@@ -126,7 +130,12 @@ describe("getDefaultPort", () => {
     expect(getDefaultPort("doris")).toBe(9030);
     expect(getDefaultPort("clickhouse")).toBe(8123);
     expect(getDefaultPort("mssql")).toBe(1433);
+    expect(getDefaultPort("oracle")).toBe(1521);
+    expect(getDefaultPort("db2")).toBe(50000);
+    expect(getDefaultPort("redis")).toBe(6379);
     expect(getDefaultPort("elasticsearch")).toBe(9200);
+    expect(getDefaultPort("mongodb")).toBe(27017);
+    expect(getDefaultPort("cassandra")).toBe(9042);
   });
 
   test("returns null for file-based drivers", () => {
@@ -153,7 +162,12 @@ describe("isFileBasedDriver", () => {
       "doris",
       "clickhouse",
       "mssql",
+      "oracle",
+      "db2",
+      "redis",
       "elasticsearch",
+      "mongodb",
+      "cassandra",
     ];
     for (const d of networkDrivers) {
       expect(isFileBasedDriver(d)).toBe(false);
@@ -220,12 +234,17 @@ describe("supportsCreateDatabase", () => {
     expect(supportsCreateDatabase("doris")).toBe(true);
     expect(supportsCreateDatabase("clickhouse")).toBe(true);
     expect(supportsCreateDatabase("mssql")).toBe(true);
+    expect(supportsCreateDatabase("cassandra")).toBe(true);
   });
 
-  test("returns false for file-based drivers", () => {
+  test("returns false for drivers without create database support", () => {
     expect(supportsCreateDatabase("sqlite")).toBe(false);
     expect(supportsCreateDatabase("duckdb")).toBe(false);
+    expect(supportsCreateDatabase("redis")).toBe(false);
     expect(supportsCreateDatabase("elasticsearch")).toBe(false);
+    expect(supportsCreateDatabase("mongodb")).toBe(false);
+    expect(supportsCreateDatabase("oracle")).toBe(false);
+    expect(supportsCreateDatabase("db2")).toBe(false);
   });
 });
 
@@ -235,6 +254,8 @@ describe("supportsSchemaBrowsing", () => {
   test("returns true for drivers with schema node support", () => {
     expect(supportsSchemaBrowsing("postgres")).toBe(true);
     expect(supportsSchemaBrowsing("mssql")).toBe(true);
+    expect(supportsSchemaBrowsing("oracle")).toBe(true);
+    expect(supportsSchemaBrowsing("db2")).toBe(true);
   });
 
   test("returns false for drivers without schema node support", () => {
@@ -247,14 +268,14 @@ describe("supportsSchemaBrowsing", () => {
       "sqlite",
       "duckdb",
       "clickhouse",
+      "redis",
+      "elasticsearch",
+      "mongodb",
+      "cassandra",
     ];
     for (const d of noSchema) {
       expect(supportsSchemaBrowsing(d)).toBe(false);
     }
-  });
-
-  test("returns true for oracle", () => {
-    expect(supportsSchemaBrowsing("oracle")).toBe(true);
   });
 });
 
@@ -265,6 +286,7 @@ describe("supportsRoutines", () => {
     expect(supportsRoutines("postgres")).toBe(true);
     expect(supportsRoutines("mysql")).toBe(true);
     expect(supportsRoutines("mssql")).toBe(true);
+    expect(supportsRoutines("db2")).toBe(true);
   });
 
   test("returns false for drivers without routine support", () => {
@@ -279,6 +301,8 @@ describe("supportsRoutines", () => {
       "oracle",
       "redis",
       "elasticsearch",
+      "mongodb",
+      "cassandra",
     ];
     for (const d of noRoutines) {
       expect(supportsRoutines(d)).toBe(false);
@@ -313,9 +337,22 @@ describe("importCapability", () => {
       "duckdb",
       "mssql",
       "oracle",
+      "db2",
     ];
     for (const d of supported) {
       expect(getDriverConfig(d).importCapability).toBe("supported");
+    }
+  });
+
+  test("unsupported drivers have unsupported import capability", () => {
+    const unsupported: Driver[] = [
+      "redis",
+      "elasticsearch",
+      "mongodb",
+      "cassandra",
+    ];
+    for (const d of unsupported) {
+      expect(getDriverConfig(d).importCapability).toBe("unsupported");
     }
   });
 });
