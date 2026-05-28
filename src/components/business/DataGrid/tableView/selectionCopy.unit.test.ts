@@ -56,6 +56,14 @@ describe("getNormalizedCellRange", () => {
     );
     expect(result).toEqual({ minRow: 0, maxRow: 5, minCol: 0, maxCol: 5 });
   });
+
+  test("handles zero coordinates", () => {
+    const result = getNormalizedCellRange(
+      { row: 0, colIndex: 0 },
+      { row: 0, colIndex: 0 },
+    );
+    expect(result).toEqual({ minRow: 0, maxRow: 0, minCol: 0, maxCol: 0 });
+  });
 });
 
 describe("buildRangeTSV", () => {
@@ -164,6 +172,18 @@ describe("buildRangeCSV", () => {
     );
     expect(result).toBe('1,"Alice\nSmith",a@b.com');
   });
+
+  test("returns empty string for empty range", () => {
+    const range = { minRow: 0, maxRow: -1, minCol: 0, maxCol: 0 };
+    const result = buildRangeCSV(range, columns, rows, getCellValue, cellValueToString);
+    expect(result).toBe("");
+  });
+
+  test("builds CSV for single cell", () => {
+    const range = { minRow: 0, maxRow: 0, minCol: 0, maxCol: 0 };
+    const result = buildRangeCSV(range, columns, rows, getCellValue, cellValueToString);
+    expect(result).toBe("1");
+  });
 });
 
 describe("buildRangeInsertSQL", () => {
@@ -199,6 +219,14 @@ describe("buildRangeInsertSQL", () => {
     const lines = result.split("\n");
     expect(lines).toHaveLength(3);
     expect(lines[0]).toContain("INSERT INTO");
+  });
+
+  test("returns empty string for empty range", () => {
+    const range = { minRow: 0, maxRow: -1, minCol: 0, maxCol: 0 };
+    const result = buildRangeInsertSQL(
+      range, columns, rows, getCellValue, formatSQLValue, quoteIdentFn, "mysql", "`users`",
+    );
+    expect(result).toBe("");
   });
 });
 
@@ -298,6 +326,12 @@ describe("buildRowsTSV", () => {
     );
     expect(result).toBe("");
   });
+
+  test("handles null values as empty strings", () => {
+    const rowsWithNull = [{ id: 1, name: null, email: "a@b.com" }];
+    const result = buildRowsTSV([0], columns, rowsWithNull, getCellValue, cellValueToString);
+    expect(result).toBe("1\t\ta@b.com");
+  });
 });
 
 describe("buildRowsCSV", () => {
@@ -324,6 +358,16 @@ describe("buildRowsCSV", () => {
       cellValueToString,
     );
     expect(result).toBe('1,"A,B","C""D"');
+  });
+
+  test("returns empty string for empty row indexes", () => {
+    const result = buildRowsCSV([], columns, rows, getCellValue, cellValueToString);
+    expect(result).toBe("");
+  });
+
+  test("builds CSV for single row", () => {
+    const result = buildRowsCSV([0], columns, rows, getCellValue, cellValueToString);
+    expect(result).toBe("1,Alice,alice@example.com");
   });
 });
 
@@ -356,6 +400,15 @@ describe("buildRowsInsertSQL", () => {
       "`users`",
     );
     expect(result).toBe("");
+  });
+
+  test("builds INSERT for single row", () => {
+    const result = buildRowsInsertSQL(
+      [0], columns, rows, getCellValue, formatSQLValue, quoteIdentFn, "mysql", "`users`",
+    );
+    expect(result).toContain("INSERT INTO `users`");
+    expect(result).toContain("'1'");
+    expect(result).toContain("'Alice'");
   });
 });
 
@@ -395,5 +448,14 @@ describe("buildRowsUpdateSQL", () => {
     expect(lines).toHaveLength(2);
     expect(lines[0]).toContain("UPDATE `users` SET");
     expect(lines[0]).toContain("`id` = 1");
+  });
+
+  test("builds UPDATE for single row with PK", () => {
+    const result = buildRowsUpdateSQL(
+      [0], columns, rows, ["id"], getCellValue, formatSQLValue, quoteIdentFn, escapeSQLFn, buildUpdateStatementFn, "mysql", "`users`",
+    );
+    expect(result).toContain("UPDATE `users` SET");
+    expect(result).toContain("`id` = 1");
+    expect(result).toContain("'Alice'");
   });
 });
