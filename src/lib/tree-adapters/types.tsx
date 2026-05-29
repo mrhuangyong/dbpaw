@@ -37,6 +37,7 @@ export interface TreeCallbacks {
   // SQL 类通用
   onTableSelect?: (ctx: LeafContext) => void;
   onCreateQuery?: (ctx: DatabaseContext) => void;
+  onOpenERDiagram?: (ctx: DatabaseContext) => void;
   onExportTable?: (ctx: LeafContext) => void;
   onAlterTable?: (ctx: LeafContext) => void;
 
