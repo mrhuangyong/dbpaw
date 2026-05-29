@@ -1,6 +1,6 @@
 use crate::models::{
-    ConnectionForm, RoutineInfo, SchemaForeignKey, SchemaOverview, TableInfo, TableMetadata,
-    TableStructure,
+    ConnectionForm, EventInfo, RoutineInfo, SchemaForeignKey, SchemaOverview, SequenceInfo,
+    TableInfo, TableMetadata, TableStructure, TypeInfo,
 };
 use crate::state::AppState;
 use tauri::State;
@@ -100,6 +100,48 @@ pub async fn get_routine_ddl(
                 .get_routine_ddl(schema_clone, name_clone, routine_type_clone)
                 .await
         }
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn list_events(
+    state: State<'_, AppState>,
+    id: i64,
+    database: Option<String>,
+    schema: Option<String>,
+) -> Result<Vec<EventInfo>, String> {
+    super::execute_with_retry(&state, id, database, |driver| {
+        let schema_clone = schema.clone();
+        async move { driver.list_events(schema_clone).await }
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn list_sequences(
+    state: State<'_, AppState>,
+    id: i64,
+    database: Option<String>,
+    schema: Option<String>,
+) -> Result<Vec<SequenceInfo>, String> {
+    super::execute_with_retry(&state, id, database, |driver| {
+        let schema_clone = schema.clone();
+        async move { driver.list_sequences(schema_clone).await }
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn list_types(
+    state: State<'_, AppState>,
+    id: i64,
+    database: Option<String>,
+    schema: Option<String>,
+) -> Result<Vec<TypeInfo>, String> {
+    super::execute_with_retry(&state, id, database, |driver| {
+        let schema_clone = schema.clone();
+        async move { driver.list_types(schema_clone).await }
     })
     .await
 }
