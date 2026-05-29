@@ -89,7 +89,7 @@ jobs:
         include:
           - platform: macos-latest
             target: aarch64-apple-darwin
-          - platform: macos-latest
+          - platform: macos-13
             target: x86_64-apple-darwin
           - platform: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
@@ -117,6 +117,10 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev \
             libkrb5-dev
+
+      - name: Install create-dmg (macOS only)
+        if: runner.os == 'macOS'
+        run: brew install create-dmg
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2

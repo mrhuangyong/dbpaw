@@ -55,6 +55,9 @@ odbc-api = "5"
 redis = { version = "0.27", features = ["tokio-comp", "tokio-rustls-comp", "cluster-async", "sentinel"] }
 mongodb = "3.6"
 scylla = { version = "1.6", features = ["chrono-04"] }
+aws-sdk-dynamodb = "1"
+aws-config = "1"
+aws-credential-types = "1"
 urlencoding = "2.1"
 quick-xml = "0.37"
 fontique = { version = "0.9", default-features = false, features = ["system"] }

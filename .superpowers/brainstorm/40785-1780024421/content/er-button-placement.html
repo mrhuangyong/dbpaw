@@ -1,0 +1,74 @@
+<h2>ER Diagram 按钮位置调整</h2>
+<p class="subtitle">当前 ER 按钮在窗口标题栏右侧，需要移到表格视图工具栏</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">当前位置 (标题栏)</div>
+    <div class="mockup-body">
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; background: #1e1e1e; border-bottom: 1px solid #333;">
+        <span style="color: #888; font-size: 12px;">DbPaw</span>
+        <div style="display: flex; gap: 8px;">
+          <button class="mock-button" style="background: #333; color: white; padding: 4px 8px; font-size: 11px;">ER</button>
+          <button class="mock-button" style="background: #333; color: white; padding: 4px 8px; font-size: 11px;">⚙️</button>
+          <button class="mock-button" style="background: #333; color: white; padding: 4px 8px; font-size: 11px;">✨</button>
+        </div>
+      </div>
+      <div style="padding: 16px; background: #252526;">
+        <div style="color: #888; font-size: 12px;">表格内容区域...</div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="mockup">
+    <div class="mockup-header">新位置 (表格工具栏)</div>
+    <div class="mockup-body">
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; background: #1e1e1e; border-bottom: 1px solid #333;">
+        <span style="color: #888; font-size: 12px;">DbPaw</span>
+        <div style="display: flex; gap: 8px;">
+          <button class="mock-button" style="background: #333; color: white; padding: 4px 8px; font-size: 11px;">⚙️</button>
+          <button class="mock-button" style="background: #333; color: white; padding: 4px 8px; font-size: 11px;">✨</button>
+        </div>
+      </div>
+      <div style="padding: 8px 12px; background: #2d2d2d; border-bottom: 1px solid #333;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: #ccc; font-size: 12px;">users</span>
+          <button class="mock-button" style="background: #0e639c; color: white; padding: 4px 10px; font-size: 11px;">新建查询</button>
+          <button class="mock-button" style="background: #0e639c; color: white; padding: 4px 10px; font-size: 11px;">DDL</button>
+          <button class="mock-button" style="background: #0e639c; color: white; padding: 4px 10px; font-size: 11px;">ER</button>
+        </div>
+      </div>
+      <div style="padding: 16px; background: #252526;">
+        <div style="color: #888; font-size: 12px;">表格数据区域...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>问题</h3>
+  <p>ER 按钮应该在什么条件下显示？</p>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="always" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>始终显示</h3>
+      <p>所有表都显示 ER 按钮，即使没有外键关系</p>
+    </div>
+  </div>
+  <div class="option" data-choice="foreign-keys" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>有外键时显示</h3>
+      <p>只有检测到外键关系时才显示 ER 按钮</p>
+    </div>
+  </div>
+  <div class="option" data-choice="all-tables" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>始终显示，无外键时提示</h3>
+      <p>始终显示按钮，但如果表没有外键，点击后显示提示信息</p>
+    </div>
+  </div>
+</div>

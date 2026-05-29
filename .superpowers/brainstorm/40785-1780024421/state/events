@@ -1,0 +1,6 @@
+{"type":"click","text":"1\n    \n      新建查询\n      打开新的查询编辑器","choice":"new-query","id":null,"timestamp":1780025166899}
+{"type":"click","text":"2\n    \n      刷新\n      刷新数据库/表列表","choice":"refresh","id":null,"timestamp":1780025167196}
+{"type":"click","text":"3\n    \n      ER Diagram\n      打开 ER 关系图","choice":"er-diagram","id":null,"timestamp":1780025167740}
+{"type":"click","text":"5\n    \n      导出表\n      导出单个表的数据","choice":"export-table","id":null,"timestamp":1780025168046}
+{"type":"click","text":"4\n    \n      导出数据库\n      导出整个数据库结构和数据","choice":"export-db","id":null,"timestamp":1780025168554}
+{"type":"click","text":"6\n    \n      修改表结构\n      修改表的列、索引等结构","choice":"alter-table","id":null,"timestamp":1780025169425}

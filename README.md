@@ -9,7 +9,7 @@
 <em>Faster SQL editing and data exploration — cross-platform, ultra-lightweight, with optional AI assistance.</em>
 <br><br>
 
-English | [简体中文](README_CN.md) | [日本語](README_JA.md)
+English | [简体中文](README_CN.md)
 
 </div>
 

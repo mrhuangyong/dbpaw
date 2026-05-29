@@ -35,6 +35,9 @@ reference
 .trae/documents/
 .cursor/plans/
 
+# worktrees
+.worktrees
+
 # skills
 .trae/skills/*
 

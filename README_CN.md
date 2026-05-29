@@ -9,7 +9,7 @@
 <em>更快的 SQL 编辑与数据探索体验：跨平台、超轻量，AI 助手可选。</em>
 <br><br>
 
-[English](README.md) | 简体中文 | [日本語](README_JA.md)
+[English](README.md) | 简体中文
 
 </div>
 

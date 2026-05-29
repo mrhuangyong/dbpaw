@@ -1,7 +1,7 @@
 # Redis 实现评估与后续行动追踪
 
 > 评估日期：2026-04-25
-> 更新日期：2026-04-25
+> 更新日期：2026-05-18
 > 评估范围：后端 datasource/command、前端视图、集成测试、架构可扩展性
 
 ---
@@ -33,6 +33,7 @@
 | 21 | 统一错误前缀 | `[REDIS_ERROR]` / `[VALIDATION_ERROR]` / `[UNSUPPORTED]` | 代码审查 |
 | 22 | 单元测试 | 连接解析、命令 tokenize、value format | `cargo test` |
 | 23 | 集成测试 | 单机 CRUD、分页、Cluster scan、TTL、rename | `redis_integration.rs` |
+| 24 | Redis 操作日志 | 记录执行的 Redis 命令，自动保留最新 100 条 | 手动测试 |
 
 ---
 
@@ -52,9 +53,9 @@
 
 | # | 功能 | 状态 | 优先级 | 备注 |
 |---|------|------|--------|------|
-| 2.6 | **Sentinel 模式支持** | ❌ 未开始 | 🟠 P1 | 高可用场景必备 |
-| 2.7 | **显式连接模式选择 UI** | ❌ 未开始 | 🟠 P1 | standalone/cluster/sentinel 下拉选择 |
-| 2.8 | **连接选项结构化** | ❌ 未开始 | 🟡 P2 | `mode`/`seedNodes`/`sentinels`/`connectTimeoutMs` 等 |
+| 2.6 | **Sentinel 模式支持** | ✅ 已完成 | 🟠 P1 | 完整实现，sentinel_password 已修复 |
+| 2.7 | **显式连接模式选择 UI** | ✅ 已完成 | 🟠 P1 | standalone/cluster/sentinel 下拉选择 + 动态表单 |
+| 2.8 | **连接选项结构化** | ✅ 已完成 | 🟡 P2 | `mode`/`seedNodes`/`sentinels`/`connectTimeoutMs`/`serviceName`/`sentinelPassword` |
 | 2.9 | **SSL CA 证书支持** | ❌ 未开始 | 🟡 P2 | 当前 `supportsSSLCA: false` |
 
 ### 🟡 P2 — 数据管理与操作能力
@@ -66,7 +67,7 @@
 | 2.12 | **数据导入** | ❌ 未开始 | 🟡 P2 | Redis 数据恢复能力 |
 | 2.13 | **数据导出** | ❌ 未开始 | 🟡 P2 | Redis 数据备份能力 |
 | 2.14 | **只读模式** | ❌ 未开始 | 🟡 P2 | 连接级只读开关 |
-| 2.15 | **操作日志/审计** | ❌ 未开始 | 🟡 P2 | 记录执行的 Redis 命令 |
+| 2.15 | **操作日志/审计** | ✅ 已完成 | 🟡 P2 | 记录执行的 Redis 命令，自动保留最新 100 条 |
 | 2.16 | **保存 Console 命令** | ❌ 未开始 | 🟡 P2 | 类似 SQL 的 SavedQuery |
 
 ### 🟢 P3 — AI 与其他增强
@@ -101,7 +102,7 @@
 | 导入/导出 | ✅ CSV/JSON/SQL/全量导出 | ❌ 无 | 完全缺失 |
 | 保存查询 | ✅ SavedQuery | ❌ 无 | Console 命令不支持保存 |
 | 创建数据库 | ✅ 部分驱动支持 | ❌ 无 | Redis DB 是数字索引 |
-| 连接模式选择 | ✅ 标准主机+端口+数据库 | 🟡 隐式识别 | 无 standalone/cluster/sentinel 显式选择 |
+| 连接模式选择 | ✅ 标准主机+端口+数据库 | ✅ 显式选择 | standalone/cluster/sentinel 下拉 |
 | SSL CA 证书 | ✅ 多数驱动支持 | ❌ 不支持 | `supportsSSLCA: false` |
 | 只读模式 | ✅ 部分支持 | ❌ 无 | 缺失 |
 | 操作日志 | ✅ SQL 执行日志 | ❌ 无 | 缺失 |
@@ -127,9 +128,10 @@
   ├─ HyperLogLog 专用视图（PFCOUNT/PFADD、估算基数展示）✅
   └─ Geo 专用视图（GEOPOS/GEODIST/GEOADD/GEOSEARCH）✅
 
-第四阶段（架构升级）— ❌ 未开始
-  ├─ 显式连接模式（Sentinel 支持）
-  ├─ 连接选项结构化（mode/seedNodes/sentinels）
+第四阶段（架构升级）— 🟡 进行中
+  ├─ 显式连接模式（Sentinel 支持）✅
+  ├─ 连接选项结构化（mode/seedNodes/sentinels）✅
+  ├─ 修复 sentinel_password 未传递问题 ✅
   └─ Sidebar 树结构抽象（为 MongoDB/ES 预留）
 
 第五阶段（数据管理）— ❌ 未开始
@@ -155,3 +157,47 @@
 | `src/services/api.ts` | 前后端 API 契约 |
 | `src-tauri/tests/redis_integration.rs` | 集成测试（单机 + Cluster） |
 | `docs/zh/Development/REDIS_IMPLEMENTATION_STATUS.md` | 原始实现状态文档 |
+
+---
+
+## 七、待完成工作总结（2026-05-18 更新）
+
+### 🔧 Bug 修复（优先级高）
+
+| # | 问题 | 文件位置 | 状态 |
+|---|------|---------|------|
+| 1 | `sentinel_password` 未传递 | `src-tauri/src/datasources/redis.rs:973` | ✅ 已修复 |
+
+### 🟡 P2 — 数据管理与操作能力（6 项）
+
+| # | 功能 | 状态 | 说明 |
+|---|------|------|------|
+| 2.10 | 批量删除 | ❌ 未开始 | 按 pattern 或多选 key 删除 |
+| 2.11 | 批量 TTL 修改 | ❌ 未开始 | 批量设置过期时间 |
+| 2.12 | 数据导入 | ❌ 未开始 | Redis 数据恢复能力 |
+| 2.13 | 数据导出 | ❌ 未开始 | Redis 数据备份能力 |
+| 2.14 | 只读模式 | ❌ 未开始 | 连接级只读开关 |
+| 2.15 | 操作日志/审计 | ✅ 已完成 | 记录执行的 Redis 命令，自动保留最新 100 条 |
+| 2.16 | 保存 Console 命令 | ❌ 未开始 | 类似 SQL 的 SavedQuery |
+
+### 🟢 P3 — AI 与其他增强（3 项）
+
+| # | 功能 | 说明 |
+|---|------|------|
+| 2.17 | AI 辅助（Redis 场景） | 命令生成、数据解释等 |
+| 2.18 | Key 内存分析 | `MEMORY USAGE` 展示 |
+| 2.19 | 慢查询查看 | `SLOWLOG GET` 集成 |
+
+### 🏗️ 架构债务（3 项）
+
+| # | 问题 | 建议方案 |
+|---|------|---------|
+| 3.1 | Sidebar 树硬编码适配 | 抽象通用 datasource tree node，剥离到 `RedisTreeNode` |
+| 3.2 | 集成测试依赖本地实例 | 提供 Docker Compose 一键测试环境 |
+| 3.3 | CI 未覆盖 Redis 测试 | 加入 Redis 测试 job（可用 Docker 服务） |
+
+### 🔒 安全与连接（1 项）
+
+| # | 功能 | 说明 |
+|---|------|------|
+| 2.9 | SSL CA 证书支持 | 当前 `supportsSSLCA: false` |

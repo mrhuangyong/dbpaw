@@ -1,0 +1,99 @@
+<h2>右键菜单项设计</h2>
+<p class="subtitle">侧边栏数据库和表的右键菜单应该包含哪些选项？</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">数据库节点右键菜单</div>
+    <div class="mockup-body">
+      <div style="background: #252526; border: 1px solid #333; border-radius: 4px; padding: 4px 0; width: 200px;">
+        <div style="padding: 8px 16px; color: #ccc; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+          <span style="color: #888;">📄</span> 新建查询
+        </div>
+        <div style="padding: 8px 16px; color: #ccc; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+          <span style="color: #888;">🔄</span> 刷新
+        </div>
+        <div style="padding: 8px 16px; color: #ccc; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+          <span style="color: #888;">📊</span> ER Diagram
+        </div>
+        <div style="border-top: 1px solid #333; margin: 4px 0;"></div>
+        <div style="padding: 8px 16px; color: #ccc; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+          <span style="color: #888;">📥</span> 导出数据库
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="mockup">
+    <div class="mockup-header">表节点右键菜单</div>
+    <div class="mockup-body">
+      <div style="background: #252526; border: 1px solid #333; border-radius: 4px; padding: 4px 0; width: 200px;">
+        <div style="padding: 8px 16px; color: #ccc; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+          <span style="color: #888;">📄</span> 新建查询
+        </div>
+        <div style="padding: 8px 16px; color: #ccc; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+          <span style="color: #888;">🔄</span> 刷新
+        </div>
+        <div style="padding: 8px 16px; color: #ccc; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+          <span style="color: #888;">📊</span> ER Diagram
+        </div>
+        <div style="border-top: 1px solid #333; margin: 4px 0;"></div>
+        <div style="padding: 8px 16px; color: #ccc; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+          <span style="color: #888;">📤</span> 导出表
+        </div>
+        <div style="padding: 8px 16px; color: #ccc; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+          <span style="color: #888;">✏️</span> 修改表结构
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>确认菜单项</h3>
+  <p>请确认数据库和表的右键菜单是否需要包含以下选项：</p>
+</div>
+
+<div class="options" data-multiselect>
+  <div class="option" data-choice="new-query" onclick="toggleSelect(this)">
+    <div class="letter">1</div>
+    <div class="content">
+      <h3>新建查询</h3>
+      <p>打开新的查询编辑器</p>
+    </div>
+  </div>
+  <div class="option" data-choice="refresh" onclick="toggleSelect(this)">
+    <div class="letter">2</div>
+    <div class="content">
+      <h3>刷新</h3>
+      <p>刷新数据库/表列表</p>
+    </div>
+  </div>
+  <div class="option" data-choice="er-diagram" onclick="toggleSelect(this)">
+    <div class="letter">3</div>
+    <div class="content">
+      <h3>ER Diagram</h3>
+      <p>打开 ER 关系图</p>
+    </div>
+  </div>
+  <div class="option" data-choice="export-db" onclick="toggleSelect(this)">
+    <div class="letter">4</div>
+    <div class="content">
+      <h3>导出数据库</h3>
+      <p>导出整个数据库结构和数据</p>
+    </div>
+  </div>
+  <div class="option" data-choice="export-table" onclick="toggleSelect(this)">
+    <div class="letter">5</div>
+    <div class="content">
+      <h3>导出表</h3>
+      <p>导出单个表的数据</p>
+    </div>
+  </div>
+  <div class="option" data-choice="alter-table" onclick="toggleSelect(this)">
+    <div class="letter">6</div>
+    <div class="content">
+      <h3>修改表结构</h3>
+      <p>修改表的列、索引等结构</p>
+    </div>
+  </div>
+</div>
