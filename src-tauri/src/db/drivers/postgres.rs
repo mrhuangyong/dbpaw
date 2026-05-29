@@ -943,6 +943,10 @@ fn pg_quote_ident(ident: &str) -> String {
     format!("\"{}\"", ident.replace('"', "\"\""))
 }
 
+fn pg_qualified_table(schema: &str, table: &str) -> String {
+    format!("{}.{}", pg_quote_ident(schema), pg_quote_ident(table))
+}
+
 fn extract_pg_index_columns(full_def: &str) -> Option<Vec<String>> {
     let upper = full_def.to_uppercase();
     let table_end = upper
