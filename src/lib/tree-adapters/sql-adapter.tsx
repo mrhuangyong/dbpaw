@@ -1,4 +1,4 @@
-import { Table, Database, FileCode, Download } from "lucide-react";
+import { Table, Database, FileCode, Download, RefreshCw } from "lucide-react";
 import type {
   TreeConfig,
   TreeMenuItem,
@@ -24,6 +24,8 @@ export function getSqlLeafContextMenuItems(
   ctx: LeafContext,
   callbacks: {
     onCreateQuery?: (ctx: DatabaseContext) => void;
+    onRefresh?: (ctx: DatabaseContext) => void;
+    onOpenERDiagram?: (ctx: DatabaseContext) => void;
     onExportTable?: (ctx: LeafContext) => void;
     onAlterTable?: (ctx: LeafContext) => void;
   },
@@ -37,6 +39,38 @@ export function getSqlLeafContextMenuItems(
       icon: <FileCode className="mr-2 h-4 w-4" />,
       onClick: () =>
         callbacks.onCreateQuery!({
+          connectionId: ctx.connectionId,
+          connectionName: ctx.connectionName,
+          connectionType: ctx.connectionType,
+          driverKind: ctx.driverKind,
+          databaseName: ctx.databaseName,
+        }),
+    });
+  }
+
+  if (callbacks.onRefresh) {
+    items.push({
+      key: "refresh",
+      label: "Refresh",
+      icon: <RefreshCw className="mr-2 h-4 w-4" />,
+      onClick: () =>
+        callbacks.onRefresh!({
+          connectionId: ctx.connectionId,
+          connectionName: ctx.connectionName,
+          connectionType: ctx.connectionType,
+          driverKind: ctx.driverKind,
+          databaseName: ctx.databaseName,
+        }),
+    });
+  }
+
+  if (callbacks.onOpenERDiagram) {
+    items.push({
+      key: "er-diagram",
+      label: "ER Diagram",
+      icon: <Table className="mr-2 h-4 w-4" />,
+      onClick: () =>
+        callbacks.onOpenERDiagram!({
           connectionId: ctx.connectionId,
           connectionName: ctx.connectionName,
           connectionType: ctx.connectionType,
