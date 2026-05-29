@@ -66,3 +66,33 @@ export function getSqlLeafContextMenuItems(
 
   return items;
 }
+
+export function getSqlDatabaseContextMenuItems(
+  ctx: DatabaseContext,
+  callbacks: {
+    onCreateQuery?: (ctx: DatabaseContext) => void;
+    onOpenERDiagram?: (ctx: DatabaseContext) => void;
+  },
+): TreeMenuItem[] {
+  const items: TreeMenuItem[] = [];
+
+  if (callbacks.onCreateQuery) {
+    items.push({
+      key: "new-query",
+      label: "New Query",
+      icon: <FileCode className="mr-2 h-4 w-4" />,
+      onClick: () => callbacks.onCreateQuery!(ctx),
+    });
+  }
+
+  if (callbacks.onOpenERDiagram) {
+    items.push({
+      key: "er-diagram",
+      label: "ER Diagram",
+      icon: <Table className="mr-2 h-4 w-4" />,
+      onClick: () => callbacks.onOpenERDiagram!(ctx),
+    });
+  }
+
+  return items;
+}
