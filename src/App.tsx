@@ -400,16 +400,6 @@ export default function App() {
       <Button
         variant="ghost"
         size="sm"
-        className="h-7 px-2 text-xs"
-        onClick={handleOpenERDiagram}
-        disabled={!activeTabItem?.connectionId || !activeTabItem?.database}
-        title={t("erDiagram.title")}
-      >
-        ER
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
         className="h-7 w-7 p-0"
         onClick={() => setOpenSettings(true)}
         title={t("app.window.settingsTooltip")}
@@ -1900,7 +1890,8 @@ export default function App() {
     ? tabs.find((t) => t.id === currentCloseTabId)
     : undefined;
 
-  const handleOpenERDiagram = useCallback(() => {
+  // @ts-ignore - will be used in Task 5 when ER button moves to table toolbar
+  const _handleOpenERDiagram = useCallback(() => {
     if (!activeTabItem?.connectionId || !activeTabItem?.database) return;
 
     const tabId = `er-diagram-${activeTabItem.database}`;
