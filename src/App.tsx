@@ -1890,8 +1890,7 @@ export default function App() {
     ? tabs.find((t) => t.id === currentCloseTabId)
     : undefined;
 
-  // @ts-ignore - will be used in Task 5 when ER button moves to table toolbar
-  const _handleOpenERDiagram = useCallback(() => {
+  const handleOpenERDiagram = useCallback(() => {
     if (!activeTabItem?.connectionId || !activeTabItem?.database) return;
 
     const tabId = `er-diagram-${activeTabItem.database}`;
@@ -2194,6 +2193,9 @@ export default function App() {
                               handleFilterChange(tab.id, f, ob)
                             }
                             onOpenDDL={handleOpenTableDDL}
+                            onOpenERDiagram={(_ctx) => {
+                              handleOpenERDiagram();
+                            }}
                             onDataRefresh={(params) =>
                               handleTableRefresh(tab.id, params)
                             }
