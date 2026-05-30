@@ -126,3 +126,65 @@ fn format_value(v: &Value) -> String {
         Value::Object(_) => "{object}".to_string(),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn format_value_null() {
+        assert_eq!(format_value(&Value::Null), "NULL");
+    }
+
+    #[test]
+    fn format_value_string_short() {
+        assert_eq!(format_value(&Value::String("hello".to_string())), "hello");
+    }
+
+    #[test]
+    fn format_value_string_long_truncated() {
+        let long = "a".repeat(101);
+        let result = format_value(&Value::String(long));
+        assert_eq!(result.len(), 100);
+        assert!(result.ends_with("..."));
+    }
+
+    #[test]
+    fn format_value_string_exactly_100_chars() {
+        let s = "a".repeat(100);
+        let result = format_value(&Value::String(s.clone()));
+        assert_eq!(result, s);
+    }
+
+    #[test]
+    fn format_value_number() {
+        assert_eq!(format_value(&serde_json::json!(42)), "42");
+    }
+
+    #[test]
+    fn format_value_bool() {
+        assert_eq!(format_value(&Value::Bool(true)), "true");
+        assert_eq!(format_value(&Value::Bool(false)), "false");
+    }
+
+    #[test]
+    fn format_value_array() {
+        assert_eq!(format_value(&Value::Array(vec![])), "[array]");
+    }
+
+    #[test]
+    fn format_value_object() {
+        assert_eq!(format_value(&Value::Object(serde_json::Map::new())), "{object}");
+    }
+
+    #[test]
+    fn get_definitions_returns_execute_query_tool() {
+        let defs = get_definitions();
+        assert_eq!(defs.len(), 1);
+        assert_eq!(defs[0].name, "dbpaw_execute_query");
+        let schema = &defs[0].input_schema;
+        let required = schema["required"].as_array().unwrap();
+        assert!(required.contains(&Value::String("connection_id".to_string())));
+        assert!(required.contains(&Value::String("sql".to_string())));
+    }
+}
