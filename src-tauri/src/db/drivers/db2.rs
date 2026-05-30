@@ -1,8 +1,8 @@
 use super::{conn_failed_error, DatabaseDriver};
 use crate::models::{
     ColumnInfo, ColumnSchema, ConnectionForm, ForeignKeyInfo, IndexInfo, QueryColumn, QueryResult,
-    RoutineInfo, SchemaForeignKey, SchemaOverview, SingleResultSet, TableDataResponse, TableInfo,
-    TableMetadata, TableSchema, TableStructure,
+    RoutineInfo, SchemaForeignKey, SchemaOverview, SequenceInfo, SingleResultSet,
+    TableDataResponse, TableInfo, TableMetadata, TableSchema, TableStructure,
 };
 use async_trait::async_trait;
 use odbc_api::{ConnectionOptions, Cursor, Environment, ResultSetMetadata};
@@ -284,6 +284,55 @@ impl DatabaseDriver for Db2Driver {
                                 schema: schema_name.to_string(),
                                 name: routine_name.to_string(),
                                 r#type: routine_type.to_string(),
+                            });
+                        }
+                    }
+                }
+            }
+            Ok(result)
+        })
+        .await
+    }
+
+    async fn list_sequences(&self, schema: Option<String>) -> Result<Vec<SequenceInfo>, String> {
+        let schema_upper = schema
+            .map(|s| s.trim().to_uppercase())
+            .filter(|s| !s.is_empty());
+        self.run_blocking(move |conn| {
+            let sql = if let Some(ref s) = schema_upper {
+                format!(
+                    "SELECT SEQSCHEMA, SEQNAME, DATA_TYPE, CAST(START AS VARCHAR(64)), CAST(INCREMENT AS VARCHAR(64)) \
+                     FROM SYSCAT.SEQUENCES \
+                     WHERE SEQSCHEMA = '{}' \
+                     ORDER BY SEQSCHEMA, SEQNAME",
+                    escape_literal(s)
+                )
+            } else {
+                "SELECT SEQSCHEMA, SEQNAME, DATA_TYPE, CAST(START AS VARCHAR(64)), CAST(INCREMENT AS VARCHAR(64)) \
+                 FROM SYSCAT.SEQUENCES \
+                 ORDER BY SEQSCHEMA, SEQNAME"
+                    .to_string()
+            };
+            let cursor = conn
+                .execute(&sql, ())
+                .map_err(|e| format!("[QUERY_ERROR] {e}"))?;
+            let mut result = Vec::new();
+            if let Some(c) = cursor {
+                let (_, rows) = collect_cursor_data(c)?;
+                for row in &rows {
+                    if let Some(arr) = row.as_array() {
+                        let schema_name = arr.first().and_then(|v| v.as_str()).unwrap_or("");
+                        let seq_name = arr.get(1).and_then(|v| v.as_str()).unwrap_or("");
+                        let data_type = arr.get(2).and_then(|v| v.as_str()).unwrap_or("");
+                        let start_value = arr.get(3).and_then(|v| v.as_str()).unwrap_or("");
+                        let increment = arr.get(4).and_then(|v| v.as_str()).unwrap_or("");
+                        if !schema_name.is_empty() && !seq_name.is_empty() {
+                            result.push(SequenceInfo {
+                                schema: schema_name.to_string(),
+                                name: seq_name.to_string(),
+                                data_type: data_type.to_string(),
+                                start_value: Some(start_value.to_string()),
+                                increment: Some(increment.to_string()),
                             });
                         }
                     }

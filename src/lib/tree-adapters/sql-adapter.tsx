@@ -36,6 +36,14 @@ const clickhouseGroups: DatabaseGroupConfig[] = [
   { id: "materializedViews", label: "connection.tree.materializedViews", icon: <Eye className="w-4 h-4" />,    leafIcon: <Eye className="w-4 h-4" />,    source: "tables", sourceFilter: "MaterializedView" },
 ];
 
+const db2Groups: DatabaseGroupConfig[] = [
+  { id: "tables",     label: "connection.tree.tables",     icon: <Table className="w-4 h-4" />,  leafIcon: <Table className="w-4 h-4" />,  source: "tables" },
+  { id: "views",      label: "connection.tree.views",      icon: <Eye className="w-4 h-4" />,    leafIcon: <Eye className="w-4 h-4" />,    source: "tables", sourceFilter: "view" },
+  { id: "functions",  label: "connection.tree.functions",  icon: <Cog className="w-4 h-4" />,    leafIcon: <Cog className="w-4 h-4" />,    source: "routines", sourceFilter: "function" },
+  { id: "procedures", label: "connection.tree.procedures", icon: <Cog className="w-4 h-4" />,    leafIcon: <Cog className="w-4 h-4" />,    source: "routines", sourceFilter: "procedure" },
+  { id: "sequences",  label: "connection.tree.sequences",  icon: <Hash className="w-4 h-4" />,   leafIcon: <Hash className="w-4 h-4" />,   source: "sequences" },
+];
+
 const defaultSqlGroups: DatabaseGroupConfig[] = [
   { id: "tables",     label: "connection.tree.tables",     icon: <Table className="w-4 h-4" />,  leafIcon: <Table className="w-4 h-4" />,  source: "tables" },
   { id: "views",      label: "connection.tree.views",      icon: <Eye className="w-4 h-4" />,    leafIcon: <Eye className="w-4 h-4" />,    source: "tables",  sourceFilter: "view" },
@@ -56,7 +64,9 @@ export function createSqlTreeConfig(
         ? sqliteGroups
         : driverId === "clickhouse"
           ? clickhouseGroups
-          : defaultSqlGroups;
+          : driverId === "db2"
+            ? db2Groups
+            : defaultSqlGroups;
   return {
     supportsSavedQueries: true,
     databaseExpandable: true,
