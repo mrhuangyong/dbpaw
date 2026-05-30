@@ -49,6 +49,14 @@ struct UsageResponse {
     total_tokens: Option<i64>,
 }
 
+fn normalize_role(role: &str) -> String {
+    match role {
+        "system" | "user" | "assistant" | "tool" => role.to_string(),
+        "developer" => "system".to_string(),
+        _ => "user".to_string(),
+    }
+}
+
 #[async_trait]
 impl AIProvider for OpenAICompatProvider {
     fn name(&self) -> &str {
@@ -95,11 +103,7 @@ impl AIProvider for OpenAICompatProvider {
         let normalized_messages = messages
             .into_iter()
             .map(|m| {
-                let role = match m.role.as_str() {
-                    "system" | "user" | "assistant" | "tool" => m.role,
-                    "developer" => "system".to_string(),
-                    _ => "user".to_string(),
-                };
+                let role = normalize_role(&m.role);
                 AiChatMessage {
                     role,
                     content: m.content,
@@ -204,11 +208,7 @@ impl OpenAICompatProvider {
         let normalized_messages = messages
             .into_iter()
             .map(|m| {
-                let role = match m.role.as_str() {
-                    "system" | "user" | "assistant" | "tool" => m.role,
-                    "developer" => "system".to_string(),
-                    _ => "user".to_string(),
-                };
+                let role = normalize_role(&m.role);
                 AiChatMessage {
                     role,
                     content: m.content,
@@ -334,5 +334,74 @@ impl OpenAICompatProvider {
             model,
             usage,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_provider(base_url: &str, api_key: &str, model: &str) -> OpenAICompatProvider {
+        OpenAICompatProvider {
+            name: "test".to_string(),
+            base_url: base_url.to_string(),
+            api_key: api_key.to_string(),
+            model: model.to_string(),
+            temperature: 0.7,
+            max_tokens: 4096,
+            extra_json: None,
+        }
+    }
+
+    #[test]
+    fn validate_config_all_valid() {
+        let p = make_provider("http://localhost", "key", "gpt-4");
+        assert!(p.validate_config().is_ok());
+    }
+
+    #[test]
+    fn validate_config_empty_base_url() {
+        let p = make_provider("", "key", "gpt-4");
+        let err = p.validate_config().unwrap_err();
+        assert!(err.contains("baseUrl"));
+    }
+
+    #[test]
+    fn validate_config_empty_api_key() {
+        let p = make_provider("http://localhost", "", "gpt-4");
+        let err = p.validate_config().unwrap_err();
+        assert!(err.contains("apiKey"));
+    }
+
+    #[test]
+    fn validate_config_empty_model() {
+        let p = make_provider("http://localhost", "key", "");
+        let err = p.validate_config().unwrap_err();
+        assert!(err.contains("model"));
+    }
+
+    #[test]
+    fn normalize_role_system() {
+        assert_eq!(normalize_role("system"), "system");
+    }
+
+    #[test]
+    fn normalize_role_user() {
+        assert_eq!(normalize_role("user"), "user");
+    }
+
+    #[test]
+    fn normalize_role_assistant() {
+        assert_eq!(normalize_role("assistant"), "assistant");
+    }
+
+    #[test]
+    fn normalize_role_developer_to_system() {
+        assert_eq!(normalize_role("developer"), "system");
+    }
+
+    #[test]
+    fn normalize_role_unknown_to_user() {
+        assert_eq!(normalize_role("unknown_role"), "user");
     }
 }
