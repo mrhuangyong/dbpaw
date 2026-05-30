@@ -2109,6 +2109,7 @@ export default function App() {
                     <TabsContent
                       key={tab.id}
                       value={tab.id}
+                      forceMount
                       className="h-full m-0"
                     >
                       <ErrorBoundary>
