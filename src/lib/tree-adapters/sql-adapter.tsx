@@ -30,6 +30,12 @@ const sqliteGroups: DatabaseGroupConfig[] = [
   { id: "views",      label: "connection.tree.views",      icon: <Eye className="w-4 h-4" />,    leafIcon: <Eye className="w-4 h-4" />,    source: "tables",  sourceFilter: "view" },
 ];
 
+const clickhouseGroups: DatabaseGroupConfig[] = [
+  { id: "tables",            label: "connection.tree.tables",            icon: <Table className="w-4 h-4" />,  leafIcon: <Table className="w-4 h-4" />,  source: "tables" },
+  { id: "views",             label: "connection.tree.views",             icon: <Eye className="w-4 h-4" />,    leafIcon: <Eye className="w-4 h-4" />,    source: "tables", sourceFilter: "View" },
+  { id: "materializedViews", label: "connection.tree.materializedViews", icon: <Eye className="w-4 h-4" />,    leafIcon: <Eye className="w-4 h-4" />,    source: "tables", sourceFilter: "MaterializedView" },
+];
+
 const defaultSqlGroups: DatabaseGroupConfig[] = [
   { id: "tables",     label: "connection.tree.tables",     icon: <Table className="w-4 h-4" />,  leafIcon: <Table className="w-4 h-4" />,  source: "tables" },
   { id: "views",      label: "connection.tree.views",      icon: <Eye className="w-4 h-4" />,    leafIcon: <Eye className="w-4 h-4" />,    source: "tables",  sourceFilter: "view" },
@@ -48,7 +54,9 @@ export function createSqlTreeConfig(
       ? postgresGroups
       : driverId === "sqlite" || driverId === "duckdb"
         ? sqliteGroups
-        : defaultSqlGroups;
+        : driverId === "clickhouse"
+          ? clickhouseGroups
+          : defaultSqlGroups;
   return {
     supportsSavedQueries: true,
     databaseExpandable: true,

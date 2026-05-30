@@ -230,6 +230,8 @@ export const ja: Translations = {
       noEvents: "イベントなし",
       noSequences: "シーケンスなし",
       noTypes: "タイプなし",
+      materializedViews: "マテリアライゼドビュー",
+      noMaterializedViews: "マテリアライゼドビューなし",
     },
     dialog: {
       editTitle: "データベース接続を編集",
