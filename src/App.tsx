@@ -27,6 +27,7 @@ import {
   FileSearch,
   KeyRound,
   LayoutDashboard,
+  Loader2,
   Server,
   Table,
   X,
@@ -2486,7 +2487,13 @@ export default function App() {
         initialDescription={currentCloseTab?.savedQueryDescription}
       />
       {openSettings && (
-        <Suspense fallback={null}>
+        <Suspense
+          fallback={
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          }
+        >
           <SettingsDialog
             open={openSettings}
             onOpenChange={setOpenSettings}

@@ -308,11 +308,11 @@ export function SettingsDialog({
     return unsubscribe;
   }, []);
 
-  useEffect(() => {
-    if (open) {
+  const loadFonts = () => {
+    if (fontList.length === 0) {
       api.system.listFonts().then(setFontList).catch(console.error);
     }
-  }, [open]);
+  };
 
   useEffect(() => {
     if (open) {
@@ -702,6 +702,9 @@ export function SettingsDialog({
                     <Select
                       value={fontFamily}
                       onValueChange={(v) => setFontFamily(v)}
+                      onOpenChange={(open) => {
+                        if (open) loadFonts();
+                      }}
                     >
                       <SelectTrigger>
                         <SelectValue
