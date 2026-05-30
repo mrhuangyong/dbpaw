@@ -572,6 +572,7 @@ interface ConnectionListProps {
   showSavedQueriesInTree?: boolean;
   redisRefreshRequest?: RedisRefreshRequest;
   treeCallbacks?: TreeCallbacks;
+  simpleMode?: boolean;
 }
 
 export interface RedisRefreshRequest {
@@ -595,6 +596,7 @@ export function ConnectionList({
   showSavedQueriesInTree = false,
   redisRefreshRequest,
   treeCallbacks,
+  simpleMode = false,
 }: ConnectionListProps) {
   const { t } = useTranslation();
   const tableNodeRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -3420,47 +3422,53 @@ export function ConnectionList({
                   });
                 }}
               >
-                {supportsSchemaNode ? (
-                  database.schemas.map((schemaNode) => {
-                    const schemaKey = getSchemaNodeKey(dbKey, schemaNode.name);
-                    return (
-                      <TreeNode
-                        key={schemaKey}
-                        level={level + 1}
-                        icon={<FolderOpen className="w-4 h-4" />}
-                        label={schemaNode.name}
-                        isExpanded={expandedSchemas.has(schemaKey)}
-                        onToggle={() => toggleSchema(schemaKey)}
-                        onContextMenu={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setContextMenu({
-                            visible: true,
-                            x: e.clientX,
-                            y: e.clientY,
-                            connectionId: connection.id,
-                            databaseName: database.name,
-                            schemaName: schemaNode.name,
-                            type: "schema",
-                          });
-                        }}
-                      >
-                        {(datasourceAdapter.databaseGroups || []).map((group) => {
-                          const items = getGroupItems(database, group, dbKey, schemaNode);
-                          return renderGroupNode(group, items, level + 2, dbKey, connection, database);
-                        })}
-                      </TreeNode>
-                    );
-                  })
-                ) : (
-                  <>
-                    {(datasourceAdapter.databaseGroups || []).map((group) => {
-                      const items = getGroupItems(database, group, dbKey);
-                      return renderGroupNode(group, items, level + 1, dbKey, connection, database);
-                    })}
+                {(() => {
+                  const allGroups = datasourceAdapter.databaseGroups || [];
+                  const dbGroups = simpleMode
+                    ? allGroups.filter((g) => g.source === "tables" && !g.sourceFilter)
+                    : allGroups;
+                  return supportsSchemaNode ? (
+                    database.schemas.map((schemaNode) => {
+                      const schemaKey = getSchemaNodeKey(dbKey, schemaNode.name);
+                      return (
+                        <TreeNode
+                          key={schemaKey}
+                          level={level + 1}
+                          icon={<FolderOpen className="w-4 h-4" />}
+                          label={schemaNode.name}
+                          isExpanded={expandedSchemas.has(schemaKey)}
+                          onToggle={() => toggleSchema(schemaKey)}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setContextMenu({
+                              visible: true,
+                              x: e.clientX,
+                              y: e.clientY,
+                              connectionId: connection.id,
+                              databaseName: database.name,
+                              schemaName: schemaNode.name,
+                              type: "schema",
+                            });
+                          }}
+                        >
+                          {dbGroups.map((group) => {
+                            const items = getGroupItems(database, group, dbKey, schemaNode);
+                            return renderGroupNode(group, items, level + 2, dbKey, connection, database);
+                          })}
+                        </TreeNode>
+                      );
+                    })
+                  ) : (
+                    <>
+                      {dbGroups.map((group) => {
+                        const items = getGroupItems(database, group, dbKey);
+                        return renderGroupNode(group, items, level + 1, dbKey, connection, database);
+                      })}
                     {datasourceAdapter.renderDatabaseFooter(database, level)}
                   </>
-                )}
+                  );
+                })()}
               </TreeNode>
             );
           };
