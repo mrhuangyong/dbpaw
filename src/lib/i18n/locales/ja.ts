@@ -232,6 +232,8 @@ export const ja: Translations = {
       noTypes: "タイプなし",
       synonyms: "シノニム",
       noSynonyms: "シノニムなし",
+      packages: "パッケージ",
+      noPackages: "パッケージなし",
       materializedViews: "マテリアライゼドビュー",
       noMaterializedViews: "マテリアライゼドビューなし",
     },

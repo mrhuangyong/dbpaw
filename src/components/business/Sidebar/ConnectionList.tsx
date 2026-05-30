@@ -75,6 +75,7 @@ import type {
   SequenceInfo,
   TypeInfo,
   SynonymInfo,
+  PackageInfo,
 } from "@/services/api";
 import type { DatabaseGroupConfig } from "@/lib/tree-adapters/types";
 import {
@@ -635,6 +636,9 @@ export function ConnectionList({
   );
   const [databaseSynonyms, setDatabaseSynonyms] = useState<
     Map<string, SynonymInfo[]>
+  >(new Map());
+  const [databasePackages, setDatabasePackages] = useState<
+    Map<string, PackageInfo[]>
   >(new Map());
   const [expandedTables, setExpandedTables] = useState<Set<string>>(new Set());
   const [selectedTableNode, setSelectedTableNode] =
@@ -1435,6 +1439,18 @@ export function ConnectionList({
     }
   };
 
+  const fetchPackages = async (
+    connectionId: string,
+    databaseName: string,
+  ): Promise<PackageInfo[]> => {
+    try {
+      return await api.metadata.listPackages(connectionId, databaseName);
+    } catch (err) {
+      console.error("Failed to fetch packages:", err);
+      return [];
+    }
+  };
+
   const openCreateElasticsearchIndexDialog = (
     connectionId: string,
     _databaseName = "Indices",
@@ -1896,6 +1912,13 @@ export function ConnectionList({
         const synonyms = await fetchSynonyms(connectionId, databaseName);
         setDatabaseSynonyms((prev) => new Map(prev).set(`${connectionId}-${databaseName}`, synonyms));
       }
+
+      // Load packages if the group exists
+      const packagesGroup = groups.find((g) => g.source === "packages");
+      if (packagesGroup) {
+        const packages = await fetchPackages(connectionId, databaseName);
+        setDatabasePackages((prev) => new Map(prev).set(`${connectionId}-${databaseName}`, packages));
+      }
       setConnections((prev) =>
         prev.map((conn) => {
           if (conn.id !== connectionId) return conn;
@@ -2282,6 +2305,8 @@ export function ConnectionList({
         return databaseTypes.get(dbKey) || [];
       case "synonyms":
         return databaseSynonyms.get(dbKey) || [];
+      case "packages":
+        return databasePackages.get(dbKey) || [];
       default:
         return [];
     }
@@ -3269,6 +3294,28 @@ export function ConnectionList({
               );
             };
 
+            const renderPackageNode = (
+              item: PackageInfo,
+              nodeLevel: number,
+              group: DatabaseGroupConfig,
+              conn: Connection,
+              database: DatabaseInfo,
+            ) => {
+              const nodeKey = `${conn.id}-${database.name}-${item.schema}-${item.name}`;
+              return (
+                <TreeNode
+                  key={nodeKey}
+                  level={nodeLevel}
+                  icon={group.leafIcon}
+                  label={item.name}
+                  isExpanded={expandedTables.has(nodeKey)}
+                  onToggle={() => toggleTable(nodeKey, conn.id, database.name, { name: item.name, schema: item.schema, columns: [] })}
+                >
+                  {null}
+                </TreeNode>
+              );
+            };
+
             const renderGroupNode = (
               group: DatabaseGroupConfig,
               items: { name: string; schema?: string; type?: string; [key: string]: any }[],
@@ -3304,6 +3351,8 @@ export function ConnectionList({
                         renderTypeNode(item as TypeInfo, groupLevel + 1, group, conn, database)
                       ) : group.source === "synonyms" ? (
                         renderSynonymNode(item as SynonymInfo, groupLevel + 1, group, conn, database)
+                      ) : group.source === "packages" ? (
+                        renderPackageNode(item as PackageInfo, groupLevel + 1, group, conn, database)
                       ) : (
                         renderTableNode(
                           { ...item, schema: item.schema || database.name } as TableInfo,

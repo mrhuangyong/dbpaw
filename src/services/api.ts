@@ -659,6 +659,12 @@ export interface SynonymInfo {
   baseObjectType: string;
 }
 
+export interface PackageInfo {
+  schema: string;
+  name: string;
+  objectType: string;
+}
+
 export interface TableSchema {
   schema: string;
   name: string;
@@ -920,6 +926,8 @@ export const api = {
       invoke<TypeInfo[]>("list_types", { connectionId, database }),
     listSynonyms: (connectionId: string, database: string) =>
       invoke<SynonymInfo[]>("list_synonyms", { connectionId, database }),
+    listPackages: (connectionId: string, database: string) =>
+      invoke<PackageInfo[]>("list_packages", { connectionId, database }),
   },
   tableData: {
     get: (params: {

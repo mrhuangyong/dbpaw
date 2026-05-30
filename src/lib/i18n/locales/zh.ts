@@ -226,6 +226,8 @@ export const zh: Translations = {
       noTypes: "暂无类型",
       synonyms: "同义词",
       noSynonyms: "没有同义词",
+      packages: "包",
+      noPackages: "没有包",
       materializedViews: "物化视图",
       noMaterializedViews: "没有物化视图",
     },
