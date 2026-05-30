@@ -1438,3 +1438,78 @@ pub async fn list_redis_command_logs(
         Err("Local DB not initialized".to_string())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cache_key_standalone_with_database() {
+        assert_eq!(cache_key(1, Some("db0"), false), "1:db0");
+    }
+
+    #[test]
+    fn cache_key_standalone_no_database() {
+        assert_eq!(cache_key(1, None, false), "1:");
+    }
+
+    #[test]
+    fn cache_key_cluster_with_database() {
+        assert_eq!(cache_key(42, Some("db1"), true), "42:cluster");
+    }
+
+    #[test]
+    fn cache_key_cluster_no_database() {
+        assert_eq!(cache_key(42, None, true), "42:cluster");
+    }
+
+    #[test]
+    fn cache_key_standalone_custom_db() {
+        assert_eq!(cache_key(99, Some("mydb"), false), "99:mydb");
+    }
+
+    #[test]
+    fn io_error_broken_pipe() {
+        assert!(is_io_error("[REDIS_ERROR] broken pipe"));
+    }
+
+    #[test]
+    fn io_error_connection_reset() {
+        assert!(is_io_error("[REDIS_ERROR] connection reset by peer"));
+    }
+
+    #[test]
+    fn io_error_connection_refused() {
+        assert!(is_io_error("[REDIS_ERROR] connection refused"));
+    }
+
+    #[test]
+    fn io_error_not_redis_error() {
+        assert!(!is_io_error("some other error"));
+    }
+
+    #[test]
+    fn io_error_redis_but_not_io() {
+        assert!(!is_io_error("[REDIS_ERROR] ERR wrong number of arguments"));
+    }
+
+    #[test]
+    fn clamp_none_returns_default() {
+        assert_eq!(clamp_redis_command_logs_limit(None), 100);
+    }
+
+    #[test]
+    fn clamp_within_range() {
+        assert_eq!(clamp_redis_command_logs_limit(Some(50)), 50);
+    }
+
+    #[test]
+    fn clamp_below_minimum() {
+        assert_eq!(clamp_redis_command_logs_limit(Some(0)), 1);
+    }
+
+    #[test]
+    fn clamp_above_maximum() {
+        assert_eq!(clamp_redis_command_logs_limit(Some(200)), 100);
+    }
+}
