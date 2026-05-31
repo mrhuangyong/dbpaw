@@ -1,5 +1,5 @@
-use super::{Transport, TransportError};
 use super::super::types::{JsonRpcRequest, JsonRpcResponse};
+use super::{Transport, TransportError};
 use async_trait::async_trait;
 use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader};
 
@@ -22,7 +22,7 @@ impl Transport for StdioTransport {
     async fn receive(&mut self) -> Result<Option<JsonRpcRequest>, TransportError> {
         let mut line = String::new();
         match self.reader.read_line(&mut line).await {
-            Ok(0) => Ok(None), // EOF
+            Ok(0) => Ok(None),
             Ok(_) => {
                 let trimmed = line.trim();
                 if trimmed.is_empty() {

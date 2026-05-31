@@ -61,6 +61,10 @@ aws-credential-types = "1"
 urlencoding = "2.1"
 quick-xml = "0.37"
 fontique = { version = "0.9", default-features = false, features = ["system"] }
+axum = "0.8"
+tower = "0.5"
+tower-http = "0.6"
+async-stream = "0.3"
 
 [target.'cfg(windows)'.dependencies]
 tiberius = { version = "0.12", features = ["winauth"] }
