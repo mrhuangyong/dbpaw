@@ -10,7 +10,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { api } from "@/services/api";
+import { api, isTauri } from "@/services/api";
 import { toast } from "sonner";
 
 interface ImportDialogProps {
@@ -26,6 +26,11 @@ export function ImportDialog({ open, onOpenChange, onImported }: ImportDialogPro
   const [loading, setLoading] = useState<Source | null>(null);
 
   const handleImport = async (source: Source) => {
+    if (!isTauri()) {
+      toast.info(t("connection.toast.importDesktopOnly"));
+      return;
+    }
+
     const filters =
       source === "navicat"
         ? [{ name: "Navicat NCX", extensions: ["ncx"] }]

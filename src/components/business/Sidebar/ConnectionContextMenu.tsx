@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus, Download } from "lucide-react";
+import { Plus, Upload } from "lucide-react";
 
 interface ConnectionContextMenuProps {
   onNewConnection: () => void;
@@ -77,7 +77,7 @@ export function ConnectionContextMenu({
               onImportConnection();
             }}
           >
-            <Download className="w-4 h-4" />
+            <Upload className="w-4 h-4" />
             {t("connection.menu.importConnections")}
           </button>
         </div>
