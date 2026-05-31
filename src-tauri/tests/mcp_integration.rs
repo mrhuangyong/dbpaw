@@ -322,3 +322,62 @@ fn test_mcp_resources_read_invalid_uri() {
 
     proc.kill().unwrap();
 }
+
+#[test]
+fn test_mcp_prompts_list() {
+    let mut proc = Command::new(get_mcp_binary())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+
+    send_request(&mut proc, r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#);
+
+    let response = send_request(&mut proc, r#"{"jsonrpc":"2.0","id":2,"method":"prompts/list","params":{}}"#);
+    let v: Value = serde_json::from_str(&response).unwrap();
+
+    let prompts = v["result"]["prompts"].as_array().unwrap();
+    let prompt_names: Vec<&str> = prompts.iter().map(|p| p["name"].as_str().unwrap()).collect();
+    assert!(prompt_names.contains(&"analyze_table"), "Should contain 'analyze_table' prompt");
+
+    proc.kill().unwrap();
+}
+
+#[test]
+fn test_mcp_prompts_get_unknown() {
+    let mut proc = Command::new(get_mcp_binary())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+
+    send_request(&mut proc, r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#);
+
+    let response = send_request(&mut proc, r#"{"jsonrpc":"2.0","id":2,"method":"prompts/get","params":{"name":"nonexistent_prompt","arguments":{}}}"#);
+    let v: Value = serde_json::from_str(&response).unwrap();
+
+    assert!(v.get("error").is_some() || v["result"]["isError"] == true, "Should return error for unknown prompt");
+
+    proc.kill().unwrap();
+}
+
+#[test]
+fn test_mcp_prompts_get_missing_params() {
+    let mut proc = Command::new(get_mcp_binary())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+
+    send_request(&mut proc, r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#);
+
+    let response = send_request(&mut proc, r#"{"jsonrpc":"2.0","id":2,"method":"prompts/get"}"#);
+    let v: Value = serde_json::from_str(&response).unwrap();
+
+    assert!(v.get("error").is_some() || v["result"]["isError"] == true, "Should return error when params missing");
+
+    proc.kill().unwrap();
+}
