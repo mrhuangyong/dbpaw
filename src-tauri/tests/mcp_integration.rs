@@ -446,3 +446,130 @@ fn test_mcp_sampling_create_message() {
 
     proc.kill().unwrap();
 }
+
+#[test]
+fn test_mcp_sql_safety_truncate_blocked() {
+    let mut proc = Command::new(get_mcp_binary())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+
+    send_request(&mut proc, r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#);
+
+    let response = send_request(&mut proc, r#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"dbpaw_execute_query","arguments":{"connection_id":1,"sql":"TRUNCATE TABLE users"}}}"#);
+    let v: Value = serde_json::from_str(&response).unwrap();
+
+    assert_eq!(v["result"]["isError"], true);
+    let text = v["result"]["content"][0]["text"].as_str().unwrap();
+    assert!(text.contains("Dangerous keyword"));
+
+    proc.kill().unwrap();
+}
+
+#[test]
+fn test_mcp_sql_safety_alter_blocked() {
+    let mut proc = Command::new(get_mcp_binary())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+
+    send_request(&mut proc, r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#);
+
+    let response = send_request(&mut proc, r#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"dbpaw_execute_query","arguments":{"connection_id":1,"sql":"ALTER TABLE users ADD COLUMN age INT"}}}"#);
+    let v: Value = serde_json::from_str(&response).unwrap();
+
+    assert_eq!(v["result"]["isError"], true);
+    let text = v["result"]["content"][0]["text"].as_str().unwrap();
+    assert!(text.contains("Dangerous keyword"));
+
+    proc.kill().unwrap();
+}
+
+#[test]
+fn test_mcp_sql_safety_create_blocked() {
+    let mut proc = Command::new(get_mcp_binary())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+
+    send_request(&mut proc, r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#);
+
+    let response = send_request(&mut proc, r#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"dbpaw_execute_query","arguments":{"connection_id":1,"sql":"CREATE TABLE test (id INT)"}}}"#);
+    let v: Value = serde_json::from_str(&response).unwrap();
+
+    assert_eq!(v["result"]["isError"], true);
+    let text = v["result"]["content"][0]["text"].as_str().unwrap();
+    assert!(text.contains("Dangerous keyword"));
+
+    proc.kill().unwrap();
+}
+
+#[test]
+fn test_mcp_sql_safety_update_no_where_blocked() {
+    let mut proc = Command::new(get_mcp_binary())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+
+    send_request(&mut proc, r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#);
+
+    let response = send_request(&mut proc, r#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"dbpaw_execute_query","arguments":{"connection_id":1,"sql":"UPDATE users SET name = 'test'"}}}"#);
+    let v: Value = serde_json::from_str(&response).unwrap();
+
+    assert_eq!(v["result"]["isError"], true);
+    let text = v["result"]["content"][0]["text"].as_str().unwrap();
+    assert!(text.contains("Write operation"), "UPDATE without WHERE should be blocked as write operation");
+
+    proc.kill().unwrap();
+}
+
+#[test]
+fn test_mcp_sql_safety_delete_no_where_blocked() {
+    let mut proc = Command::new(get_mcp_binary())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+
+    send_request(&mut proc, r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#);
+
+    let response = send_request(&mut proc, r#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"dbpaw_execute_query","arguments":{"connection_id":1,"sql":"DELETE FROM users"}}}"#);
+    let v: Value = serde_json::from_str(&response).unwrap();
+
+    assert_eq!(v["result"]["isError"], true);
+    let text = v["result"]["content"][0]["text"].as_str().unwrap();
+    assert!(text.contains("Write operation"), "DELETE without WHERE should be blocked as write operation");
+
+    proc.kill().unwrap();
+}
+
+#[test]
+fn test_mcp_sql_safety_select_where_allowed() {
+    let mut proc = Command::new(get_mcp_binary())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+
+    send_request(&mut proc, r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#);
+
+    let response = send_request(&mut proc, r#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"dbpaw_execute_query","arguments":{"connection_id":1,"sql":"SELECT * FROM users WHERE id = 1"}}}"#);
+    let v: Value = serde_json::from_str(&response).unwrap();
+
+    let text = v["result"]["content"][0]["text"].as_str().unwrap();
+    assert!(!text.contains("Dangerous keyword"), "SELECT with WHERE should not be blocked by safety checks");
+    assert!(!text.contains("Write operation"), "SELECT with WHERE should not be blocked by safety checks");
+    assert!(!text.contains("Multiple statements"), "SELECT with WHERE should not be blocked by safety checks");
+
+    proc.kill().unwrap();
+}
