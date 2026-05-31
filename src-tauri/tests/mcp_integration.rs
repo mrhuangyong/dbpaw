@@ -154,3 +154,81 @@ fn test_mcp_invalid_tool() {
 
     proc.kill().unwrap();
 }
+
+#[test]
+fn test_mcp_ping() {
+    let mut proc = Command::new(get_mcp_binary())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+
+    send_request(&mut proc, r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#);
+
+    let response = send_request(&mut proc, r#"{"jsonrpc":"2.0","id":2,"method":"ping"}"#);
+    let v: Value = serde_json::from_str(&response).unwrap();
+
+    assert_eq!(v["jsonrpc"], "2.0");
+    assert_eq!(v["id"], 2);
+    assert!(v.get("error").is_none(), "ping should not return an error");
+    assert_eq!(v["result"], serde_json::json!({}));
+
+    proc.kill().unwrap();
+}
+
+#[test]
+fn test_mcp_initialized_notification() {
+    let mut proc = Command::new(get_mcp_binary())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+
+    send_request(&mut proc, r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#);
+
+    // Send initialized notification (no id field — it's a notification, not a request)
+    let stdin = proc.stdin.as_mut().unwrap();
+    stdin.write_all(b"{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}\n").unwrap();
+    stdin.flush().unwrap();
+
+    // Read notification response (server responds even to notifications)
+    let stdout = proc.stdout.as_mut().unwrap();
+    let mut reader = BufReader::new(stdout);
+    let mut notification_response = String::new();
+    reader.read_line(&mut notification_response).unwrap();
+
+    // Verify server is still alive by sending a ping
+    let response = send_request(&mut proc, r#"{"jsonrpc":"2.0","id":2,"method":"ping"}"#);
+    let v: Value = serde_json::from_str(&response).unwrap();
+
+    assert_eq!(v["jsonrpc"], "2.0");
+    assert_eq!(v["id"], 2);
+    assert!(v.get("error").is_none(), "server should still be alive after notification");
+    assert_eq!(v["result"], serde_json::json!({}));
+
+    proc.kill().unwrap();
+}
+
+#[test]
+fn test_mcp_method_not_found() {
+    let mut proc = Command::new(get_mcp_binary())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+
+    send_request(&mut proc, r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#);
+
+    let response = send_request(&mut proc, r#"{"jsonrpc":"2.0","id":2,"method":"unknown_method"}"#);
+    let v: Value = serde_json::from_str(&response).unwrap();
+
+    assert_eq!(v["jsonrpc"], "2.0");
+    assert_eq!(v["id"], 2);
+    assert!(v.get("error").is_some(), "should return an error for unknown method");
+    assert_eq!(v["error"]["code"], -32601, "error code should be -32601 (Method not found)");
+
+    proc.kill().unwrap();
+}
