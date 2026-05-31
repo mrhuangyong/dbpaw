@@ -271,12 +271,12 @@ pub async fn get_table_metadata_direct(
 
 #[tauri::command]
 pub async fn get_schema_foreign_keys(
-    state: &AppState,
+    state: State<'_, AppState>,
     id: i64,
     database: Option<String>,
     schema: Option<String>,
 ) -> Result<Vec<SchemaForeignKey>, String> {
-    super::execute_with_retry_from_app_state(state, id, database, |driver| {
+    super::execute_with_retry_from_app_state(&state, id, database, |driver| {
         let schema_clone = schema.clone();
         async move { driver.get_schema_foreign_keys(schema_clone.as_deref()).await }
     })
