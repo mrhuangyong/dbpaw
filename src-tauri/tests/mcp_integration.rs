@@ -573,3 +573,41 @@ fn test_mcp_sql_safety_select_where_allowed() {
 
     proc.kill().unwrap();
 }
+
+#[test]
+fn test_mcp_tools_call_missing_params() {
+    let mut proc = Command::new(get_mcp_binary())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+
+    send_request(&mut proc, r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#);
+
+    let response = send_request(&mut proc, r#"{"jsonrpc":"2.0","id":2,"method":"tools/call"}"#);
+    let v: Value = serde_json::from_str(&response).unwrap();
+
+    assert!(v.get("error").is_some() || v["result"]["isError"] == true, "Should return error when params missing");
+
+    proc.kill().unwrap();
+}
+
+#[test]
+fn test_mcp_tools_call_missing_name() {
+    let mut proc = Command::new(get_mcp_binary())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+
+    send_request(&mut proc, r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#);
+
+    let response = send_request(&mut proc, r#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"arguments":{}}}"#);
+    let v: Value = serde_json::from_str(&response).unwrap();
+
+    assert!(v.get("error").is_some() || v["result"]["isError"] == true, "Should return error when name missing");
+
+    proc.kill().unwrap();
+}
