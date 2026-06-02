@@ -27,7 +27,7 @@ impl SyncScheduler {
         let local_db = self.local_db.clone();
         let mut shutdown = self.shutdown_rx.clone();
 
-        tokio::spawn(async move {
+        tauri::async_runtime::spawn(async move {
             loop {
                 // Read configured interval from DB
                 let interval_secs = Self::get_sync_interval_secs(&local_db).await;
@@ -54,7 +54,7 @@ impl SyncScheduler {
     pub fn notify_data_changed(&self) {
         let local_db = self.local_db.clone();
 
-        tokio::spawn(async move {
+        tauri::async_runtime::spawn(async move {
             // Debounce: wait 3 seconds before syncing
             tokio::time::sleep(Duration::from_secs(3)).await;
             let _ = Self::try_auto_sync(&local_db).await;
