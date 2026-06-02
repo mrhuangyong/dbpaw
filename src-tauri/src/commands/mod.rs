@@ -7,6 +7,7 @@ pub mod mongodb;
 pub mod query;
 pub mod redis;
 pub mod storage;
+pub mod sync;
 pub mod system;
 pub mod transfer;
 

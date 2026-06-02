@@ -446,6 +446,42 @@ export const getImportDriverCapability = (
   const config = DRIVER_REGISTRY.find((d) => d.id === normalized);
   return config?.importCapability ?? "unsupported";
 };
+
+// ── Sync types ────────────────────────────────────────────
+
+export type SyncProviderType = "S3" | "WebDAV";
+
+export interface SyncConfig {
+  providerType: SyncProviderType;
+  endpoint?: string;
+  region?: string;
+  bucket?: string;
+  accessKeyId?: string;
+  secretAccessKey?: string;
+  pathPrefix?: string;
+  serverUrl?: string;
+  username?: string;
+  password?: string;
+  syncIntervalMinutes?: number;
+}
+
+export interface SyncStatus {
+  enabled: boolean;
+  providerType?: SyncProviderType;
+  endpoint?: string;
+  lastSyncAt?: string;
+  lastSyncResult?: string;
+  deviceId?: string;
+  passwordStored: boolean;
+  syncIntervalMinutes: number;
+}
+
+export interface SyncResult {
+  action: string;
+  timestamp: string;
+  remoteDeviceId?: string;
+}
+
 export interface ConnectionForm {
   driver: Driver;
   name?: string;
@@ -917,7 +953,11 @@ export const api = {
     getSchemaOverview: (id: number, database?: string, schema?: string) =>
       invoke<SchemaOverview>("get_schema_overview", { id, database, schema }),
     getSchemaForeignKeys: (id: number, database?: string, schema?: string) =>
-      invoke<SchemaForeignKey[]>("get_schema_foreign_keys", { id, database, schema }),
+      invoke<SchemaForeignKey[]>("get_schema_foreign_keys", {
+        id,
+        database,
+        schema,
+      }),
     listEvents: (connectionId: string, database: string) =>
       invoke<EventInfo[]>("list_events", { connectionId, database }),
     listSequences: (connectionId: string, database: string) =>
@@ -1732,5 +1772,19 @@ export const api = {
   },
   system: {
     listFonts: () => invoke<string[]>("list_system_fonts"),
+  },
+  sync: {
+    testConnection: (config: SyncConfig): Promise<void> =>
+      invoke("sync_test_connection", { config }),
+    configure: (config: SyncConfig, syncPassword: string): Promise<void> =>
+      invoke("sync_configure", { config, syncPassword }),
+    getStatus: (): Promise<SyncStatus> => invoke("sync_get_status"),
+    getConfig: (): Promise<SyncConfig | null> => invoke("sync_get_config"),
+    syncNow: (): Promise<SyncResult> => invoke("sync_now"),
+    forcePush: (): Promise<void> => invoke("sync_force_push"),
+    forcePull: (): Promise<void> => invoke("sync_force_pull"),
+    disable: (): Promise<void> => invoke("sync_disable"),
+    updatePassword: (oldPassword: string, newPassword: string): Promise<void> =>
+      invoke("sync_update_password", { oldPassword, newPassword }),
   },
 };

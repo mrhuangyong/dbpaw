@@ -54,6 +54,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Cloud } from "lucide-react";
+import { SyncSettings } from "./SyncSettings";
 import packageJson from "../../../package.json";
 import { LanguageSelector } from "./LanguageSelector";
 import { useTranslation } from "react-i18next";
@@ -75,7 +77,7 @@ interface SettingsDialogProps {
   onShowZebraStripesChange?: (v: boolean) => void;
 }
 
-type SettingsSection = "general" | "layout" | "ai" | "shortcuts" | "about";
+type SettingsSection = "general" | "layout" | "ai" | "shortcuts" | "sync" | "about";
 type AIProviderPreset = {
   type: AIProviderType;
   label: string;
@@ -550,6 +552,17 @@ export function SettingsDialog({
               </button>
               <button
                 className={`w-full text-left rounded-md px-3 py-2 text-sm transition-colors flex items-center gap-2 ${
+                  activeSection === "sync"
+                    ? "bg-background shadow-sm text-foreground"
+                    : "text-muted-foreground hover:bg-muted/60"
+                }`}
+                onClick={() => setActiveSection("sync")}
+              >
+                <Cloud className="w-4 h-4" />
+                {t("settings.sections.sync", { defaultValue: "Sync" })}
+              </button>
+              <button
+                className={`w-full text-left rounded-md px-3 py-2 text-sm transition-colors flex items-center gap-2 ${
                   activeSection === "about"
                     ? "bg-background shadow-sm text-foreground"
                     : "text-muted-foreground hover:bg-muted/60"
@@ -978,6 +991,10 @@ export function SettingsDialog({
 
             {activeSection === "shortcuts" && (
               <ShortcutsPanel />
+            )}
+
+            {activeSection === "sync" && (
+              <SyncSettings />
             )}
 
             {activeSection === "about" && (

@@ -68,6 +68,11 @@ axum = "0.8"
 tower = "0.5"
 tower-http = "0.6"
 async-stream = "0.3"
+sha2 = "0.10"
+hmac = "0.12"
+pbkdf2 = "0.12"
+hex = "0.4"
+url = "2"
 
 [target.'cfg(windows)'.dependencies]
 tiberius = { version = "0.12", features = ["winauth"] }

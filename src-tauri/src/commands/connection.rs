@@ -647,7 +647,9 @@ pub async fn create_connection(
         lock.clone()
     };
     if let Some(db) = local_db {
-        db.create_connection(form).await
+        let result = db.create_connection(form).await;
+        state.sync_scheduler.notify_data_changed();
+        result
     } else {
         Err("Local DB not initialized".to_string())
     }
@@ -684,7 +686,9 @@ pub async fn update_connection(
         // If connection is updated, we should remove it from pool so next usage reconnects with new config
         state.pool_manager.remove_by_prefix(&id.to_string()).await;
 
-        db.update_connection(id, form).await
+        let result = db.update_connection(id, form).await;
+        state.sync_scheduler.notify_data_changed();
+        result
     } else {
         Err("Local DB not initialized".to_string())
     }
@@ -710,7 +714,9 @@ pub async fn update_connection_direct(
 
 #[tauri::command]
 pub async fn delete_connection(state: State<'_, AppState>, id: i64) -> Result<(), String> {
-    delete_connection_direct(&state, id).await
+    let result = delete_connection_direct(&state, id).await;
+    state.sync_scheduler.notify_data_changed();
+    result
 }
 
 pub async fn delete_connection_direct(state: &AppState, id: i64) -> Result<(), String> {
@@ -1036,7 +1042,9 @@ pub async fn import_connections(
         lock.clone()
     };
     if let Some(db) = local_db {
-        crate::import::import_from_file(&file_path, &db).await
+        let result = crate::import::import_from_file(&file_path, &db).await;
+        state.sync_scheduler.notify_data_changed();
+        result
     } else {
         Err("Local DB not initialized".to_string())
     }

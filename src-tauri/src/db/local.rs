@@ -281,6 +281,20 @@ impl LocalDb {
                 .map_err(|e| format!("[MIGRATION_016_ERROR] {e}"))?;
         }
 
+        let has_sync_state: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='sync_state')",
+        )
+        .fetch_one(&pool)
+        .await
+        .map_err(|e| format!("[MIGRATION_017_CHECK_ERROR] {e}"))?;
+
+        if !has_sync_state {
+            sqlx::query(include_str!("../../migrations/017_sync_state.sql"))
+                .execute(&pool)
+                .await
+                .map_err(|e| format!("[MIGRATION_017_ERROR] {e}"))?;
+        }
+
         Ok(Self {
             pool,
             ai_master_key,
@@ -298,6 +312,16 @@ impl LocalDb {
     pub fn has_encrypted_ai_api_key(value: &str) -> bool {
         let trimmed = value.trim();
         trimmed.starts_with(Self::AI_KEY_PREFIX) && trimmed.len() > Self::AI_KEY_PREFIX.len()
+    }
+
+    /// Encrypt the sync password using the AI master key for local storage.
+    pub fn encrypt_sync_password(&self, password: &str) -> Result<String, String> {
+        Self::encrypt_ai_api_key_raw(&self.ai_master_key, password)
+    }
+
+    /// Decrypt the sync password that was stored locally.
+    pub fn decrypt_sync_password(&self, encrypted: &str) -> Result<String, String> {
+        Self::decrypt_ai_api_key_raw(&self.ai_master_key, encrypted)
     }
 
     fn load_or_create_ai_master_key(app_dir: &Path) -> Result<[u8; 32], String> {
@@ -794,6 +818,42 @@ impl LocalDb {
         .map_err(|e| format!("[LIST_REDIS_COMMAND_LOGS_ERROR] {e}"))
     }
 
+    // ── sync_state CRUD ──────────────────────────────────────
+
+    pub async fn get_sync_state(&self, key: &str) -> Result<Option<String>, String> {
+        let row = sqlx::query_as::<_, (String,)>(
+            "SELECT value FROM sync_state WHERE key = ?",
+        )
+        .bind(key)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| format!("[GET_SYNC_STATE_ERROR] {e}"))?;
+
+        Ok(row.map(|(v,)| v))
+    }
+
+    pub async fn set_sync_state(&self, key: &str, value: &str) -> Result<(), String> {
+        sqlx::query(
+            "INSERT INTO sync_state (key, value, updated_at) VALUES (?, ?, datetime('now'))
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+        )
+        .bind(key)
+        .bind(value)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| format!("[SET_SYNC_STATE_ERROR] {e}"))?;
+        Ok(())
+    }
+
+    pub async fn delete_sync_state(&self, key: &str) -> Result<(), String> {
+        sqlx::query("DELETE FROM sync_state WHERE key = ?")
+            .bind(key)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| format!("[DELETE_SYNC_STATE_ERROR] {e}"))?;
+        Ok(())
+    }
+
     pub async fn list_ai_providers(&self) -> Result<Vec<AiProvider>, String> {
         sqlx::query_as::<_, AiProvider>(
             "SELECT id, name, provider_type, base_url, model, api_key, is_default, enabled, extra_json, created_at, updated_at FROM ai_providers ORDER BY is_default DESC, updated_at DESC",
@@ -1186,6 +1246,7 @@ mod tests {
             include_str!("../../migrations/014_add_sentinel_fields.sql"),
             include_str!("../../migrations/015_add_mongodb_auth_source.sql"),
             include_str!("../../migrations/016_redis_command_logs.sql"),
+            include_str!("../../migrations/017_sync_state.sql"),
         ] {
             sqlx::query(migration)
                 .execute(&pool)

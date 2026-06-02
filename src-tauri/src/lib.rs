@@ -128,6 +128,7 @@ pub fn run() {
             }
 
             // Initialize local database (blocking to avoid race conditions)
+            let handle_for_sync = handle.clone();
             tauri::async_runtime::block_on(async move {
                 let state = handle.state::<AppState>();
                 match LocalDb::init(&handle).await {
@@ -138,10 +139,16 @@ pub fn run() {
                     }
                     Err(e) => {
                         eprintln!("Failed to initialize local DB: {}", e);
-                        // Make the error visible in the frontend if possible, or at least easier to debug
                     }
                 }
             });
+
+            // Start the sync scheduler for periodic + event-driven auto-sync
+            {
+                let state = handle_for_sync.state::<AppState>();
+                state.sync_scheduler.start();
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -270,6 +277,15 @@ pub fn run() {
             commands::mongodb::mongodb_list_databases,
             commands::mongodb::mongodb_list_collections,
             commands::system::list_system_fonts,
+            commands::sync::sync_test_connection,
+            commands::sync::sync_configure,
+            commands::sync::sync_get_status,
+            commands::sync::sync_get_config,
+            commands::sync::sync_now,
+            commands::sync::sync_force_push,
+            commands::sync::sync_force_pull,
+            commands::sync::sync_disable,
+            commands::sync::sync_update_password,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
@@ -278,6 +294,7 @@ pub fn run() {
         tauri::RunEvent::Exit => {
             let _ = app_handle.save_window_state(StateFlags::all());
             let state = app_handle.state::<AppState>();
+            state.sync_scheduler.stop();
             tauri::async_runtime::block_on(async {
                 state.pool_manager.close_all().await;
             });
@@ -298,6 +315,7 @@ pub mod mcp;
 pub mod models;
 pub mod ssh;
 pub mod state;
+pub mod sync;
 pub mod utils;
 
 /// Initialize Oracle Instant Client library path from bundled resources.
