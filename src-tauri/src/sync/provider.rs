@@ -2,9 +2,10 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
 pub enum ProviderType {
+    #[serde(rename = "S3")]
     S3,
+    #[serde(rename = "WebDAV")]
     WebDAV,
 }
 
