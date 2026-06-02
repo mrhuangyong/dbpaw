@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 pub struct AppState {
-    pub local_db: Mutex<Option<Arc<LocalDb>>>,
+    pub local_db: Arc<Mutex<Option<Arc<LocalDb>>>>,
     pub pool_manager: Arc<PoolManager>,
     pub redis_cache: Mutex<RedisConnectionCache>,
 }
@@ -13,7 +13,7 @@ pub struct AppState {
 impl AppState {
     pub fn new() -> Self {
         Self {
-            local_db: Mutex::new(None),
+            local_db: Arc::new(Mutex::new(None)),
             pool_manager: Arc::new(PoolManager::new()),
             redis_cache: Mutex::new(RedisConnectionCache::new()),
         }

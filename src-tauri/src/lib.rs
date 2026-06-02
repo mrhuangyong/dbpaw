@@ -270,6 +270,14 @@ pub fn run() {
             commands::mongodb::mongodb_list_databases,
             commands::mongodb::mongodb_list_collections,
             commands::system::list_system_fonts,
+            commands::sync::sync_test_connection,
+            commands::sync::sync_configure,
+            commands::sync::sync_get_status,
+            commands::sync::sync_now,
+            commands::sync::sync_force_push,
+            commands::sync::sync_force_pull,
+            commands::sync::sync_disable,
+            commands::sync::sync_update_password,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
