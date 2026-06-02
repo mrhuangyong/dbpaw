@@ -436,8 +436,18 @@ impl SyncManager {
             db.delete_connection(conn.id).await?;
         }
         for conn_val in &snapshot.data.connections {
-            let form: crate::models::ConnectionForm = serde_json::from_value(conn_val.clone())
-                .map_err(|e| format!("[SYNC_MERGE_ERROR] Parse connection: {e}"))?;
+            // Snapshot stores Connection objects (dbType), but create_connection
+            // expects ConnectionForm (driver). Map the field name.
+            let mut form_val = conn_val.clone();
+            if let Some(db_type) = form_val.get("dbType").cloned() {
+                form_val.as_object_mut().map(|m| {
+                    m.insert("driver".to_string(), db_type);
+                    m
+                });
+            }
+            let form: crate::models::ConnectionForm =
+                serde_json::from_value(form_val)
+                    .map_err(|e| format!("[SYNC_MERGE_ERROR] Parse connection: {e}"))?;
             db.create_connection(form).await?;
         }
 
