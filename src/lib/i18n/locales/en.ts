@@ -264,6 +264,7 @@ export const en = {
       status: "Sync Status",
       lastSync: "Last sync",
       noSyncYet: "Not synced yet",
+      passwordNotStored: "Sync password not stored. Please reconfigure sync.",
     },
   },
   connection: {

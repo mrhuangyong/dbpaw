@@ -1777,12 +1777,9 @@ export const api = {
       invoke("sync_configure", { config, syncPassword }),
     getStatus: (): Promise<SyncStatus> => invoke("sync_get_status"),
     getConfig: (): Promise<SyncConfig | null> => invoke("sync_get_config"),
-    syncNow: (syncPassword: string): Promise<SyncResult> =>
-      invoke("sync_now", { syncPassword }),
-    forcePush: (syncPassword: string): Promise<void> =>
-      invoke("sync_force_push", { syncPassword }),
-    forcePull: (syncPassword: string): Promise<void> =>
-      invoke("sync_force_pull", { syncPassword }),
+    syncNow: (): Promise<SyncResult> => invoke("sync_now"),
+    forcePush: (): Promise<void> => invoke("sync_force_push"),
+    forcePull: (): Promise<void> => invoke("sync_force_pull"),
     disable: (): Promise<void> => invoke("sync_disable"),
     updatePassword: (oldPassword: string, newPassword: string): Promise<void> =>
       invoke("sync_update_password", { oldPassword, newPassword }),

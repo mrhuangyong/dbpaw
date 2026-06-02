@@ -258,6 +258,7 @@ export const zh: Translations = {
       status: "同步状态",
       lastSync: "上次同步",
       noSyncYet: "尚未同步",
+      passwordNotStored: "同步密码未存储，请重新配置同步。",
     },
   },
   connection: {

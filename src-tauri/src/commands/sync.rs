@@ -32,30 +32,21 @@ pub async fn sync_get_config(state: State<'_, AppState>) -> Result<Option<SyncCo
 }
 
 #[tauri::command]
-pub async fn sync_now(
-    state: State<'_, AppState>,
-    sync_password: String,
-) -> Result<SyncResult, String> {
+pub async fn sync_now(state: State<'_, AppState>) -> Result<SyncResult, String> {
     let manager = SyncManager::new(state.local_db.clone());
-    manager.sync_now(&sync_password).await
+    manager.sync_now().await
 }
 
 #[tauri::command]
-pub async fn sync_force_push(
-    state: State<'_, AppState>,
-    sync_password: String,
-) -> Result<(), String> {
+pub async fn sync_force_push(state: State<'_, AppState>) -> Result<(), String> {
     let manager = SyncManager::new(state.local_db.clone());
-    manager.force_push(&sync_password).await
+    manager.force_push().await
 }
 
 #[tauri::command]
-pub async fn sync_force_pull(
-    state: State<'_, AppState>,
-    sync_password: String,
-) -> Result<(), String> {
+pub async fn sync_force_pull(state: State<'_, AppState>) -> Result<(), String> {
     let manager = SyncManager::new(state.local_db.clone());
-    manager.force_pull(&sync_password).await
+    manager.force_pull().await
 }
 
 #[tauri::command]

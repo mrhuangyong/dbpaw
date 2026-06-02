@@ -34,7 +34,7 @@ export function SyncSettings() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
-  // Sync password
+  // Sync password (only needed for initial configuration)
   const [syncPassword, setSyncPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -134,13 +134,9 @@ export function SyncSettings() {
   };
 
   const handleSyncNow = async () => {
-    if (!syncPassword) {
-      toast.error(t("settings.sync.enterPassword"));
-      return;
-    }
     setLoading(true);
     try {
-      const result = await api.sync.syncNow(syncPassword);
+      const result = await api.sync.syncNow();
       toast.success(t("settings.sync.synced", { action: result.action }));
       loadStatus();
     } catch (e) {
@@ -153,13 +149,9 @@ export function SyncSettings() {
   };
 
   const handleForcePush = async () => {
-    if (!syncPassword) {
-      toast.error(t("settings.sync.enterPassword"));
-      return;
-    }
     setLoading(true);
     try {
-      await api.sync.forcePush(syncPassword);
+      await api.sync.forcePush();
       toast.success(t("settings.sync.forcePushed"));
       loadStatus();
     } catch (e) {
@@ -172,13 +164,9 @@ export function SyncSettings() {
   };
 
   const handleForcePull = async () => {
-    if (!syncPassword) {
-      toast.error(t("settings.sync.enterPassword"));
-      return;
-    }
     setLoading(true);
     try {
-      await api.sync.forcePull(syncPassword);
+      await api.sync.forcePull();
       toast.success(t("settings.sync.forcePulled"));
       loadStatus();
     } catch (e) {
@@ -284,19 +272,25 @@ export function SyncSettings() {
 
         <Separator className="my-2" />
 
-        <Label className="text-base">{t("settings.sync.syncPassword")}</Label>
-        <Input
-          placeholder="Sync password (min 6 chars)"
-          type="password"
-          value={syncPassword}
-          onChange={(e) => setSyncPassword(e.target.value)}
-        />
-        <Input
-          placeholder="Confirm password"
-          type="password"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-        />
+        {!status?.enabled && (
+          <>
+            <Label className="text-base">
+              {t("settings.sync.syncPassword")}
+            </Label>
+            <Input
+              placeholder="Sync password (min 6 chars)"
+              type="password"
+              value={syncPassword}
+              onChange={(e) => setSyncPassword(e.target.value)}
+            />
+            <Input
+              placeholder="Confirm password"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
+          </>
+        )}
 
         <div className="flex gap-2 mt-2">
           <Button

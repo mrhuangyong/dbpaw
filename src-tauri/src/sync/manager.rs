@@ -98,9 +98,9 @@ impl SyncManager {
         };
         db.set_sync_state("endpoint", &display_endpoint).await?;
 
-        // Store sync password hash for verification
-        let pw_hash = crypto::snapshot_hash(sync_password.as_bytes());
-        db.set_sync_state("sync_password_hash", &pw_hash).await?;
+        // Store sync password encrypted with master key for automatic sync
+        let encrypted_pw = db.encrypt_sync_password(sync_password)?;
+        db.set_sync_state("sync_password_enc", &encrypted_pw).await?;
 
         // Export and upload initial snapshot
         let snapshot = self.export_snapshot(&db, &device_id).await?;
@@ -144,8 +144,9 @@ impl SyncManager {
     }
 
     /// Sync now: pull remote, then push local if changed.
-    pub async fn sync_now(&self, sync_password: &str) -> Result<SyncResult, String> {
+    pub async fn sync_now(&self) -> Result<SyncResult, String> {
         let db = self.get_db().await?;
+        let sync_password = self.get_sync_password(&db).await?;
         let config = self.load_config(&db).await?;
         let provider = build_provider(&config)?;
 
@@ -155,7 +156,7 @@ impl SyncManager {
         // Pull remote
         let remote_result = provider.get_object(SNAPSHOT_KEY).await?;
         if let Some(remote_encrypted) = remote_result {
-            let remote_plaintext = crypto::decrypt(sync_password, &remote_encrypted)?;
+            let remote_plaintext = crypto::decrypt(&sync_password, &remote_encrypted)?;
             let remote_snapshot: SyncSnapshot = serde_json::from_slice(&remote_plaintext)
                 .map_err(|e| format!("[SYNC_MERGE_ERROR] Invalid remote snapshot: {e}"))?;
 
@@ -188,7 +189,7 @@ impl SyncManager {
         let snapshot = self.export_snapshot(&db, &local_device_id).await?;
         let plaintext = serde_json::to_vec(&snapshot)
             .map_err(|e| format!("[SYNC_CONFIG_ERROR] Serialize: {e}"))?;
-        let encrypted = crypto::encrypt(sync_password, &plaintext)?;
+        let encrypted = crypto::encrypt(&sync_password, &plaintext)?;
         provider.put_object(SNAPSHOT_KEY, &encrypted).await?;
 
         db.set_sync_state("last_synced_hash", &snapshot.snapshot_hash)
@@ -204,8 +205,9 @@ impl SyncManager {
     }
 
     /// Force push: upload local data, overwriting remote.
-    pub async fn force_push(&self, sync_password: &str) -> Result<(), String> {
+    pub async fn force_push(&self) -> Result<(), String> {
         let db = self.get_db().await?;
+        let sync_password = self.get_sync_password(&db).await?;
         let config = self.load_config(&db).await?;
         let provider = build_provider(&config)?;
         let device_id = self.get_device_id(&db).await?;
@@ -213,7 +215,7 @@ impl SyncManager {
         let snapshot = self.export_snapshot(&db, &device_id).await?;
         let plaintext = serde_json::to_vec(&snapshot)
             .map_err(|e| format!("[SYNC_CONFIG_ERROR] Serialize: {e}"))?;
-        let encrypted = crypto::encrypt(sync_password, &plaintext)?;
+        let encrypted = crypto::encrypt(&sync_password, &plaintext)?;
         provider.put_object(SNAPSHOT_KEY, &encrypted).await?;
 
         db.set_sync_state("last_synced_hash", &snapshot.snapshot_hash)
@@ -229,8 +231,9 @@ impl SyncManager {
     }
 
     /// Force pull: download remote data, overwriting local.
-    pub async fn force_pull(&self, sync_password: &str) -> Result<(), String> {
+    pub async fn force_pull(&self) -> Result<(), String> {
         let db = self.get_db().await?;
+        let sync_password = self.get_sync_password(&db).await?;
         let config = self.load_config(&db).await?;
         let provider = build_provider(&config)?;
 
@@ -239,7 +242,7 @@ impl SyncManager {
             .await?
             .ok_or_else(|| "[SYNC_CONNECTION_ERROR] No remote snapshot found".to_string())?;
 
-        let remote_plaintext = crypto::decrypt(sync_password, &remote_encrypted)?;
+        let remote_plaintext = crypto::decrypt(&sync_password, &remote_encrypted)?;
         let remote_snapshot: SyncSnapshot = serde_json::from_slice(&remote_plaintext)
             .map_err(|e| format!("[SYNC_MERGE_ERROR] Invalid remote snapshot: {e}"))?;
 
@@ -287,9 +290,9 @@ impl SyncManager {
         let encrypted = crypto::encrypt(new_password, &remote_plaintext)?;
         provider.put_object(SNAPSHOT_KEY, &encrypted).await?;
 
-        // Update stored password hash
-        let pw_hash = crypto::snapshot_hash(new_password.as_bytes());
-        db.set_sync_state("sync_password_hash", &pw_hash).await?;
+        // Update stored encrypted password
+        let encrypted_pw = db.encrypt_sync_password(new_password)?;
+        db.set_sync_state("sync_password_enc", &encrypted_pw).await?;
 
         Ok(())
     }
@@ -308,11 +311,12 @@ impl SyncManager {
     }
 
     /// Auto-sync push if local has changes.
-    pub async fn auto_sync_push(&self, sync_password: &str) -> Result<(), String> {
+    pub async fn auto_sync_push(&self) -> Result<(), String> {
         if !self.has_local_changes().await? {
             return Ok(());
         }
         let db = self.get_db().await?;
+        let sync_password = self.get_sync_password(&db).await?;
         let config = self.load_config(&db).await?;
         let provider = build_provider(&config)?;
         let device_id = self.get_device_id(&db).await?;
@@ -320,7 +324,7 @@ impl SyncManager {
         let snapshot = self.export_snapshot(&db, &device_id).await?;
         let plaintext = serde_json::to_vec(&snapshot)
             .map_err(|e| format!("[SYNC_CONFIG_ERROR] Serialize: {e}"))?;
-        let encrypted = crypto::encrypt(sync_password, &plaintext)?;
+        let encrypted = crypto::encrypt(&sync_password, &plaintext)?;
         provider.put_object(SNAPSHOT_KEY, &encrypted).await?;
 
         db.set_sync_state("last_synced_hash", &snapshot.snapshot_hash)
@@ -336,6 +340,18 @@ impl SyncManager {
     }
 
     // ── Private helpers ──────────────────────────────────
+
+    /// Retrieve the stored sync password (decrypted).
+    async fn get_sync_password(&self, db: &LocalDb) -> Result<String, String> {
+        let encrypted = db
+            .get_sync_state("sync_password_enc")
+            .await?
+            .ok_or_else(|| {
+                "[SYNC_CONFIG_ERROR] Sync password not stored. Please reconfigure sync."
+                    .to_string()
+            })?;
+        db.decrypt_sync_password(&encrypted)
+    }
 
     async fn load_config(&self, db: &LocalDb) -> Result<SyncConfig, String> {
         let config_json = db

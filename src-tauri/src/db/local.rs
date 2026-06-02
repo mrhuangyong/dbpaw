@@ -314,6 +314,16 @@ impl LocalDb {
         trimmed.starts_with(Self::AI_KEY_PREFIX) && trimmed.len() > Self::AI_KEY_PREFIX.len()
     }
 
+    /// Encrypt the sync password using the AI master key for local storage.
+    pub fn encrypt_sync_password(&self, password: &str) -> Result<String, String> {
+        Self::encrypt_ai_api_key_raw(&self.ai_master_key, password)
+    }
+
+    /// Decrypt the sync password that was stored locally.
+    pub fn decrypt_sync_password(&self, encrypted: &str) -> Result<String, String> {
+        Self::decrypt_ai_api_key_raw(&self.ai_master_key, encrypted)
+    }
+
     fn load_or_create_ai_master_key(app_dir: &Path) -> Result<[u8; 32], String> {
         let key_path = app_dir.join("ai_master.key");
         if key_path.exists() {
