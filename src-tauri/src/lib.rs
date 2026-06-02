@@ -298,6 +298,7 @@ pub mod mcp;
 pub mod models;
 pub mod ssh;
 pub mod state;
+pub mod sync;
 pub mod utils;
 
 /// Initialize Oracle Instant Client library path from bundled resources.
