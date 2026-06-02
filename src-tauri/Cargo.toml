@@ -72,6 +72,7 @@ sha2 = "0.10"
 hmac = "0.12"
 pbkdf2 = "0.12"
 hex = "0.4"
+url = "2"
 
 [target.'cfg(windows)'.dependencies]
 tiberius = { version = "0.12", features = ["winauth"] }
