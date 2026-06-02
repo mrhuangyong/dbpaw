@@ -122,6 +122,29 @@ export function SyncSettings() {
     setLoading(true);
     try {
       await api.sync.configure(buildConfig(), syncPassword);
+      setSyncPassword("");
+      setConfirmPassword("");
+      toast.success(t("settings.sync.configured"));
+      loadStatus();
+    } catch (e) {
+      toast.error(t("settings.sync.configureFailed"), {
+        description: e instanceof Error ? e.message : String(e),
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /// Save password for an already-configured sync (migration from old version)
+  const handleSavePassword = async () => {
+    if (!syncPassword || syncPassword.length < 6) {
+      toast.error(t("settings.sync.passwordTooShort"));
+      return;
+    }
+    setLoading(true);
+    try {
+      await api.sync.configure(buildConfig(), syncPassword);
+      setSyncPassword("");
       toast.success(t("settings.sync.configured"));
       loadStatus();
     } catch (e) {
@@ -272,7 +295,7 @@ export function SyncSettings() {
 
         <Separator className="my-2" />
 
-        {!status?.enabled && (
+        {(!status?.enabled || !status?.passwordStored) && (
           <>
             <Label className="text-base">
               {t("settings.sync.syncPassword")}
@@ -283,12 +306,19 @@ export function SyncSettings() {
               value={syncPassword}
               onChange={(e) => setSyncPassword(e.target.value)}
             />
-            <Input
-              placeholder="Confirm password"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-            />
+            {!status?.enabled && (
+              <Input
+                placeholder="Confirm password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+            )}
+            {status?.enabled && !status?.passwordStored && (
+              <div className="text-xs text-muted-foreground">
+                {t("settings.sync.passwordNotStored")}
+              </div>
+            )}
           </>
         )}
 
@@ -300,9 +330,15 @@ export function SyncSettings() {
           >
             {t("settings.sync.testConnection")}
           </Button>
-          <Button onClick={handleConfigure} disabled={loading}>
-            {t("settings.sync.saveAndEnable")}
-          </Button>
+          {!status?.enabled ? (
+            <Button onClick={handleConfigure} disabled={loading}>
+              {t("settings.sync.saveAndEnable")}
+            </Button>
+          ) : !status?.passwordStored ? (
+            <Button onClick={handleSavePassword} disabled={loading}>
+              {t("settings.sync.saveAndEnable")}
+            </Button>
+          ) : null}
           {status?.enabled && (
             <Button
               variant="outline"
@@ -336,7 +372,7 @@ export function SyncSettings() {
           ) : (
             <div>{t("settings.sync.noSyncYet")}</div>
           )}
-          {status.enabled && (
+          {status.enabled && status.passwordStored && (
             <div className="mt-2 flex gap-2">
               <Button
                 size="sm"

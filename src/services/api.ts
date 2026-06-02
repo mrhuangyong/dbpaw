@@ -471,6 +471,7 @@ export interface SyncStatus {
   lastSyncAt?: string;
   lastSyncResult?: string;
   deviceId?: string;
+  passwordStored: boolean;
 }
 
 export interface SyncResult {

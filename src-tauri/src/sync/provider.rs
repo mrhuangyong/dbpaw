@@ -35,6 +35,7 @@ pub struct SyncStatus {
     pub last_sync_at: Option<String>,
     pub last_sync_result: Option<String>,
     pub device_id: Option<String>,
+    pub password_stored: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

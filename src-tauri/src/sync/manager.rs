@@ -43,6 +43,7 @@ impl SyncManager {
         let last_sync_at = db.get_sync_state("last_sync_at").await?;
         let last_sync_result = db.get_sync_state("last_sync_result").await?;
         let device_id = db.get_sync_state("device_id").await?;
+        let password_stored = db.get_sync_state("sync_password_enc").await?.is_some();
 
         Ok(SyncStatus {
             enabled: enabled == "true",
@@ -55,6 +56,7 @@ impl SyncManager {
             last_sync_at,
             last_sync_result,
             device_id,
+            password_stored,
         })
     }
 
