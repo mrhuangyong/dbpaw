@@ -38,6 +38,9 @@ export function SyncSettings() {
   const [syncPassword, setSyncPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
+  // Auto-sync interval
+  const [syncInterval, setSyncInterval] = useState(5);
+
   const loadStatus = useCallback(async () => {
     try {
       const s = await api.sync.getStatus();
@@ -53,6 +56,7 @@ export function SyncSettings() {
       const config = await api.sync.getConfig();
       if (config) {
         setProviderType(config.providerType);
+        setSyncInterval(config.syncIntervalMinutes ?? 5);
         if (config.providerType === "S3") {
           setEndpoint(config.endpoint ?? "");
           setRegion(config.region ?? "us-east-1");
@@ -77,8 +81,10 @@ export function SyncSettings() {
   }, [loadStatus, loadConfig]);
 
   const buildConfig = (): SyncConfig => {
+    const base = { syncIntervalMinutes: syncInterval };
     if (providerType === "S3") {
       return {
+        ...base,
         providerType: "S3",
         endpoint,
         region,
@@ -89,6 +95,7 @@ export function SyncSettings() {
       };
     }
     return {
+      ...base,
       providerType: "WebDAV",
       serverUrl,
       username,
@@ -295,6 +302,26 @@ export function SyncSettings() {
 
         <Separator className="my-2" />
 
+        <Label className="text-base">{t("settings.sync.syncInterval")}</Label>
+        <Select
+          value={String(syncInterval)}
+          onValueChange={(v) => setSyncInterval(Number(v))}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="1">1 min</SelectItem>
+            <SelectItem value="3">3 min</SelectItem>
+            <SelectItem value="5">5 min</SelectItem>
+            <SelectItem value="10">10 min</SelectItem>
+            <SelectItem value="30">30 min</SelectItem>
+            <SelectItem value="60">60 min</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Separator className="my-2" />
+
         {(!status?.enabled || !status?.passwordStored) && (
           <>
             <Label className="text-base">
@@ -361,6 +388,9 @@ export function SyncSettings() {
           {status.deviceId && (
             <div>Device ID: {status.deviceId.slice(0, 8)}...</div>
           )}
+          <div>
+            {t("settings.sync.syncInterval")}: {status.syncIntervalMinutes} min
+          </div>
           {status.lastSyncAt ? (
             <div>
               {t("settings.sync.lastSync")}:{" "}

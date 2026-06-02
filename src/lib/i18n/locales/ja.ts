@@ -265,6 +265,7 @@ export const ja: Translations = {
       status: "同期ステータス",
       lastSync: "最終同期",
       noSyncYet: "未同期",
+      syncInterval: "自動同期間隔",
       passwordNotStored:
         "同期パスワードが保存されていません。同期を再設定してください。",
     },

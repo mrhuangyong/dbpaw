@@ -24,6 +24,8 @@ pub struct SyncConfig {
     pub server_url: Option<String>,
     pub username: Option<String>,
     pub password: Option<String>,
+    // Auto-sync interval in minutes (default: 5)
+    pub sync_interval_minutes: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -36,6 +38,7 @@ pub struct SyncStatus {
     pub last_sync_result: Option<String>,
     pub device_id: Option<String>,
     pub password_stored: bool,
+    pub sync_interval_minutes: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

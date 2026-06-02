@@ -462,6 +462,7 @@ export interface SyncConfig {
   serverUrl?: string;
   username?: string;
   password?: string;
+  syncIntervalMinutes?: number;
 }
 
 export interface SyncStatus {
@@ -472,6 +473,7 @@ export interface SyncStatus {
   lastSyncResult?: string;
   deviceId?: string;
   passwordStored: boolean;
+  syncIntervalMinutes: number;
 }
 
 export interface SyncResult {

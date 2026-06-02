@@ -44,6 +44,11 @@ impl SyncManager {
         let last_sync_result = db.get_sync_state("last_sync_result").await?;
         let device_id = db.get_sync_state("device_id").await?;
         let password_stored = db.get_sync_state("sync_password_enc").await?.is_some();
+        let sync_interval_minutes = db
+            .get_sync_state("sync_interval_minutes")
+            .await?
+            .and_then(|s| s.parse::<u32>().ok())
+            .unwrap_or(5);
 
         Ok(SyncStatus {
             enabled: enabled == "true",
@@ -57,6 +62,7 @@ impl SyncManager {
             last_sync_result,
             device_id,
             password_stored,
+            sync_interval_minutes,
         })
     }
 
@@ -99,6 +105,11 @@ impl SyncManager {
             ProviderType::WebDAV => config.server_url.clone().unwrap_or_default(),
         };
         db.set_sync_state("endpoint", &display_endpoint).await?;
+
+        // Store sync interval
+        let interval = config.sync_interval_minutes.unwrap_or(5);
+        db.set_sync_state("sync_interval_minutes", &interval.to_string())
+            .await?;
 
         // Store sync password encrypted with master key for automatic sync
         let encrypted_pw = db.encrypt_sync_password(sync_password)?;

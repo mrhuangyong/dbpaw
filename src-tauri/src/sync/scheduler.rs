@@ -2,6 +2,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{watch, Mutex};
 
+const DEFAULT_INTERVAL_MINUTES: u32 = 5;
+
 /// Background sync scheduler that runs periodic auto-sync and
 /// responds to data-change events with debounced push.
 pub struct SyncScheduler {
@@ -27,10 +29,11 @@ impl SyncScheduler {
 
         tokio::spawn(async move {
             loop {
-                // Wait for the interval or shutdown signal
+                // Read configured interval from DB
+                let interval_secs = Self::get_sync_interval_secs(&local_db).await;
+
                 tokio::select! {
-                    _ = tokio::time::sleep(Duration::from_secs(5 * 60)) => {
-                        // Check if sync is enabled and auto-sync interval has passed
+                    _ = tokio::time::sleep(Duration::from_secs(interval_secs)) => {
                         let _ = Self::try_auto_sync(&local_db).await;
                     }
                     _ = shutdown.changed() => {
@@ -43,7 +46,7 @@ impl SyncScheduler {
             }
         });
 
-        println!("[SYNC_SCHEDULER] Started (interval: 5 min)");
+        println!("[SYNC_SCHEDULER] Started");
     }
 
     /// Notify the scheduler that local data has changed.
@@ -61,6 +64,21 @@ impl SyncScheduler {
     /// Shut down the scheduler.
     pub fn stop(&self) {
         let _ = self.shutdown_tx.send(true);
+    }
+
+    /// Read configured sync interval from DB (in seconds).
+    async fn get_sync_interval_secs(
+        local_db: &Arc<Mutex<Option<Arc<crate::db::local::LocalDb>>>>,
+    ) -> u64 {
+        let lock = local_db.lock().await;
+        if let Some(db) = lock.as_ref() {
+            if let Ok(Some(val)) = db.get_sync_state("sync_interval_minutes").await {
+                if let Ok(mins) = val.parse::<u32>() {
+                    return (mins.max(1) as u64) * 60;
+                }
+            }
+        }
+        (DEFAULT_INTERVAL_MINUTES as u64) * 60
     }
 
     /// Attempt auto-sync if conditions are met (enabled + password stored).
