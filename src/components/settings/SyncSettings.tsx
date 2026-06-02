@@ -385,9 +385,7 @@ export function SyncSettings() {
             {t("settings.sync.status", { defaultValue: "Sync Status" })}
           </div>
           {status.deviceId && (
-            <div>
-              Device ID: {status.deviceId.slice(0, 8)}...
-            </div>
+            <div>Device ID: {status.deviceId.slice(0, 8)}...</div>
           )}
           {status.lastSyncAt && (
             <div>

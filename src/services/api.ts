@@ -950,7 +950,11 @@ export const api = {
     getSchemaOverview: (id: number, database?: string, schema?: string) =>
       invoke<SchemaOverview>("get_schema_overview", { id, database, schema }),
     getSchemaForeignKeys: (id: number, database?: string, schema?: string) =>
-      invoke<SchemaForeignKey[]>("get_schema_foreign_keys", { id, database, schema }),
+      invoke<SchemaForeignKey[]>("get_schema_foreign_keys", {
+        id,
+        database,
+        schema,
+      }),
     listEvents: (connectionId: string, database: string) =>
       invoke<EventInfo[]>("list_events", { connectionId, database }),
     listSequences: (connectionId: string, database: string) =>
@@ -1771,16 +1775,14 @@ export const api = {
       invoke("sync_test_connection", { config }),
     configure: (config: SyncConfig, syncPassword: string): Promise<void> =>
       invoke("sync_configure", { config, syncPassword }),
-    getStatus: (): Promise<SyncStatus> =>
-      invoke("sync_get_status"),
+    getStatus: (): Promise<SyncStatus> => invoke("sync_get_status"),
     syncNow: (syncPassword: string): Promise<SyncResult> =>
       invoke("sync_now", { syncPassword }),
     forcePush: (syncPassword: string): Promise<void> =>
       invoke("sync_force_push", { syncPassword }),
     forcePull: (syncPassword: string): Promise<void> =>
       invoke("sync_force_pull", { syncPassword }),
-    disable: (): Promise<void> =>
-      invoke("sync_disable"),
+    disable: (): Promise<void> => invoke("sync_disable"),
     updatePassword: (oldPassword: string, newPassword: string): Promise<void> =>
       invoke("sync_update_password", { oldPassword, newPassword }),
   },
