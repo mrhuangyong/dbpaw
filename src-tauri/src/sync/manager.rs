@@ -4,7 +4,6 @@ use crate::sync::provider::{
     build_provider, ProviderType, SyncConfig, SyncResult, SyncSnapshot, SyncSnapshotData,
     SyncStatus,
 };
-use crate::sync::provider::SyncProvider;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
