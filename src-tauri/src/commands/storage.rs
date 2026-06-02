@@ -13,8 +13,12 @@ pub async fn save_query(
 ) -> Result<SavedQuery, String> {
     let local_db = state.local_db.lock().await;
     if let Some(db) = local_db.as_ref() {
-        db.create_saved_query(name, query, description, connection_id, database)
-            .await
+        let result = db
+            .create_saved_query(name, query, description, connection_id, database)
+            .await;
+        drop(local_db);
+        state.sync_scheduler.notify_data_changed();
+        result
     } else {
         Err("Local DB not initialized".to_string())
     }
@@ -49,8 +53,12 @@ pub async fn update_saved_query(
 ) -> Result<SavedQuery, String> {
     let local_db = state.local_db.lock().await;
     if let Some(db) = local_db.as_ref() {
-        db.update_saved_query(id, name, query, description, connection_id, database)
-            .await
+        let result = db
+            .update_saved_query(id, name, query, description, connection_id, database)
+            .await;
+        drop(local_db);
+        state.sync_scheduler.notify_data_changed();
+        result
     } else {
         Err("Local DB not initialized".to_string())
     }
@@ -78,7 +86,10 @@ pub async fn update_saved_query_direct(
 pub async fn delete_saved_query(state: State<'_, AppState>, id: i64) -> Result<(), String> {
     let local_db = state.local_db.lock().await;
     if let Some(db) = local_db.as_ref() {
-        db.delete_saved_query(id).await
+        let result = db.delete_saved_query(id).await;
+        drop(local_db);
+        state.sync_scheduler.notify_data_changed();
+        result
     } else {
         Err("Local DB not initialized".to_string())
     }

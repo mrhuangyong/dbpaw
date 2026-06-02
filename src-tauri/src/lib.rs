@@ -128,6 +128,7 @@ pub fn run() {
             }
 
             // Initialize local database (blocking to avoid race conditions)
+            let handle_for_sync = handle.clone();
             tauri::async_runtime::block_on(async move {
                 let state = handle.state::<AppState>();
                 match LocalDb::init(&handle).await {
@@ -138,10 +139,16 @@ pub fn run() {
                     }
                     Err(e) => {
                         eprintln!("Failed to initialize local DB: {}", e);
-                        // Make the error visible in the frontend if possible, or at least easier to debug
                     }
                 }
             });
+
+            // Start the sync scheduler for periodic + event-driven auto-sync
+            {
+                let state = handle_for_sync.state::<AppState>();
+                state.sync_scheduler.start();
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -287,6 +294,7 @@ pub fn run() {
         tauri::RunEvent::Exit => {
             let _ = app_handle.save_window_state(StateFlags::all());
             let state = app_handle.state::<AppState>();
+            state.sync_scheduler.stop();
             tauri::async_runtime::block_on(async {
                 state.pool_manager.close_all().await;
             });

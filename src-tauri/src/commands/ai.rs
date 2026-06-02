@@ -170,6 +170,7 @@ pub async fn ai_create_provider(
     normalize_provider_form(&mut config, Some("openai"))?;
     let db = get_db(&state).await?;
     let created = db.create_ai_provider(config).await?;
+    state.sync_scheduler.notify_data_changed();
     db.get_ai_provider_public_by_id(created.id).await
 }
 
@@ -192,6 +193,7 @@ pub async fn ai_update_provider(
     normalize_provider_form(&mut config, None)?;
     let db = get_db(&state).await?;
     let updated = db.update_ai_provider(id, config).await?;
+    state.sync_scheduler.notify_data_changed();
     db.get_ai_provider_public_by_id(updated.id).await
 }
 
@@ -209,7 +211,9 @@ pub async fn ai_update_provider_direct(
 #[tauri::command]
 pub async fn ai_delete_provider(state: State<'_, AppState>, id: i64) -> Result<(), String> {
     let db = get_db(&state).await?;
-    db.delete_ai_provider(id).await
+    let result = db.delete_ai_provider(id).await;
+    state.sync_scheduler.notify_data_changed();
+    result
 }
 
 pub async fn ai_delete_provider_direct(state: &AppState, id: i64) -> Result<(), String> {
@@ -220,7 +224,9 @@ pub async fn ai_delete_provider_direct(state: &AppState, id: i64) -> Result<(), 
 #[tauri::command]
 pub async fn ai_set_default_provider(state: State<'_, AppState>, id: i64) -> Result<(), String> {
     let db = get_db(&state).await?;
-    db.set_default_ai_provider(id).await
+    let result = db.set_default_ai_provider(id).await;
+    state.sync_scheduler.notify_data_changed();
+    result
 }
 
 pub async fn ai_set_default_provider_direct(state: &AppState, id: i64) -> Result<(), String> {
@@ -235,7 +241,9 @@ pub async fn ai_clear_provider_api_key(
 ) -> Result<(), String> {
     let provider_type = normalize_provider_type(&provider_type)?;
     let db = get_db(&state).await?;
-    db.clear_ai_provider_api_key(&provider_type).await
+    let result = db.clear_ai_provider_api_key(&provider_type).await;
+    state.sync_scheduler.notify_data_changed();
+    result
 }
 
 pub async fn ai_clear_provider_api_key_direct(
