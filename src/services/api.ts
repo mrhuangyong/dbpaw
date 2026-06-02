@@ -446,6 +446,39 @@ export const getImportDriverCapability = (
   const config = DRIVER_REGISTRY.find((d) => d.id === normalized);
   return config?.importCapability ?? "unsupported";
 };
+
+// ── Sync types ────────────────────────────────────────────
+
+export type SyncProviderType = "S3" | "WebDAV";
+
+export interface SyncConfig {
+  providerType: SyncProviderType;
+  endpoint?: string;
+  region?: string;
+  bucket?: string;
+  accessKeyId?: string;
+  secretAccessKey?: string;
+  pathPrefix?: string;
+  serverUrl?: string;
+  username?: string;
+  password?: string;
+}
+
+export interface SyncStatus {
+  enabled: boolean;
+  providerType?: SyncProviderType;
+  endpoint?: string;
+  lastSyncAt?: string;
+  lastSyncResult?: string;
+  deviceId?: string;
+}
+
+export interface SyncResult {
+  action: string;
+  timestamp: string;
+  remoteDeviceId?: string;
+}
+
 export interface ConnectionForm {
   driver: Driver;
   name?: string;
@@ -1732,5 +1765,23 @@ export const api = {
   },
   system: {
     listFonts: () => invoke<string[]>("list_system_fonts"),
+  },
+  sync: {
+    testConnection: (config: SyncConfig): Promise<void> =>
+      invoke("sync_test_connection", { config }),
+    configure: (config: SyncConfig, syncPassword: string): Promise<void> =>
+      invoke("sync_configure", { config, syncPassword }),
+    getStatus: (): Promise<SyncStatus> =>
+      invoke("sync_get_status"),
+    syncNow: (syncPassword: string): Promise<SyncResult> =>
+      invoke("sync_now", { syncPassword }),
+    forcePush: (syncPassword: string): Promise<void> =>
+      invoke("sync_force_push", { syncPassword }),
+    forcePull: (syncPassword: string): Promise<void> =>
+      invoke("sync_force_pull", { syncPassword }),
+    disable: (): Promise<void> =>
+      invoke("sync_disable"),
+    updatePassword: (oldPassword: string, newPassword: string): Promise<void> =>
+      invoke("sync_update_password", { oldPassword, newPassword }),
   },
 };
