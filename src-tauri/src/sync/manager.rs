@@ -130,6 +130,19 @@ impl SyncManager {
         Ok(())
     }
 
+    /// Get saved sync config (for form echo-back).
+    pub async fn get_config(&self) -> Result<Option<SyncConfig>, String> {
+        let db = self.get_db().await?;
+        match db.get_sync_state("sync_config").await? {
+            Some(json) => {
+                let config: SyncConfig = serde_json::from_str(&json)
+                    .map_err(|e| format!("[SYNC_CONFIG_ERROR] Parse config: {e}"))?;
+                Ok(Some(config))
+            }
+            None => Ok(None),
+        }
+    }
+
     /// Sync now: pull remote, then push local if changed.
     pub async fn sync_now(&self, sync_password: &str) -> Result<SyncResult, String> {
         let db = self.get_db().await?;

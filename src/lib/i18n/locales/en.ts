@@ -83,6 +83,7 @@ export const en = {
       layout: "Layout",
       ai: "AI",
       shortcuts: "Shortcuts",
+      sync: "Sync",
       about: "About",
     },
     language: {
@@ -113,9 +114,11 @@ export const en = {
       showColumnCommentsDescription:
         "Display column comments in small text below the column name in table headers",
       showRowNumbers: "Show Row Numbers",
-      showRowNumbersDescription: "Display row number column on the left side of the table",
+      showRowNumbersDescription:
+        "Display row number column on the left side of the table",
       showZebraStripes: "Show Zebra Stripes",
-      showZebraStripesDescription: "Alternate row background colors for better readability",
+      showZebraStripesDescription:
+        "Alternate row background colors for better readability",
       filter: {
         title: "Filter",
       },
@@ -183,8 +186,7 @@ export const en = {
     },
     shortcuts: {
       title: "Shortcuts",
-      hint:
-        "Click Record, then press the new keys. Modifiers (Cmd / Ctrl / Alt / Shift) are required for new bindings.",
+      hint: "Click Record, then press the new keys. Modifiers (Cmd / Ctrl / Alt / Shift) are required for new bindings.",
       loading: "Loading shortcuts…",
       record: "Record",
       recording: "Press keys…",
@@ -198,7 +200,8 @@ export const en = {
       enable: "Enable",
       disabled: "Disabled",
       errorNoModifier: "At least one modifier is required",
-      conflictPrompt: "This shortcut is already used by “{{other}}”. Replace it?",
+      conflictPrompt:
+        "This shortcut is already used by “{{other}}”. Replace it?",
       confirmReplace: "Replace",
       group: {
         global: "Global",
@@ -232,6 +235,35 @@ export const en = {
       tech: "Tech",
       license: "License",
       platforms: "Platforms",
+    },
+    sync: {
+      title: "Config Sync",
+      provider: "Sync Provider",
+      syncPassword: "Sync Password",
+      testConnection: "Test Connection",
+      saveAndEnable: "Save & Enable",
+      disable: "Disable",
+      testSuccess: "Connection successful",
+      testFailed: "Connection failed",
+      passwordTooShort: "Password must be at least 6 characters",
+      passwordMismatch: "Passwords do not match",
+      configured: "Sync configured and enabled",
+      configureFailed: "Failed to configure sync",
+      enterPassword: "Enter your sync password",
+      synced: "Sync: {{action}}",
+      syncFailed: "Sync failed",
+      syncNow: "Sync Now",
+      forcePush: "Force Push",
+      forcePull: "Force Pull",
+      forcePushed: "Force pushed to remote",
+      forcePushFailed: "Force push failed",
+      forcePulled: "Force pulled from remote",
+      forcePullFailed: "Force pull failed",
+      disabled: "Sync disabled",
+      disableFailed: "Failed to disable sync",
+      status: "Sync Status",
+      lastSync: "Last sync",
+      noSyncYet: "Not synced yet",
     },
   },
   connection: {

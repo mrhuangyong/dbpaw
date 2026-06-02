@@ -1776,6 +1776,7 @@ export const api = {
     configure: (config: SyncConfig, syncPassword: string): Promise<void> =>
       invoke("sync_configure", { config, syncPassword }),
     getStatus: (): Promise<SyncStatus> => invoke("sync_get_status"),
+    getConfig: (): Promise<SyncConfig | null> => invoke("sync_get_config"),
     syncNow: (syncPassword: string): Promise<SyncResult> =>
       invoke("sync_now", { syncPassword }),
     forcePush: (syncPassword: string): Promise<void> =>

@@ -26,6 +26,12 @@ pub async fn sync_get_status(state: State<'_, AppState>) -> Result<SyncStatus, S
 }
 
 #[tauri::command]
+pub async fn sync_get_config(state: State<'_, AppState>) -> Result<Option<SyncConfig>, String> {
+    let manager = SyncManager::new(state.local_db.clone());
+    manager.get_config().await
+}
+
+#[tauri::command]
 pub async fn sync_now(
     state: State<'_, AppState>,
     sync_password: String,

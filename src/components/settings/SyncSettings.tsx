@@ -47,9 +47,34 @@ export function SyncSettings() {
     }
   }, []);
 
+  // Load saved config and populate form fields
+  const loadConfig = useCallback(async () => {
+    try {
+      const config = await api.sync.getConfig();
+      if (config) {
+        setProviderType(config.providerType);
+        if (config.providerType === "S3") {
+          setEndpoint(config.endpoint ?? "");
+          setRegion(config.region ?? "us-east-1");
+          setBucket(config.bucket ?? "");
+          setAccessKeyId(config.accessKeyId ?? "");
+          setSecretAccessKey(config.secretAccessKey ?? "");
+          setPathPrefix(config.pathPrefix ?? "dbpaw/");
+        } else {
+          setServerUrl(config.serverUrl ?? "");
+          setUsername(config.username ?? "");
+          setPassword(config.password ?? "");
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load sync config:", e);
+    }
+  }, []);
+
   useEffect(() => {
     loadStatus();
-  }, [loadStatus]);
+    loadConfig();
+  }, [loadStatus, loadConfig]);
 
   const buildConfig = (): SyncConfig => {
     if (providerType === "S3") {
@@ -75,18 +100,11 @@ export function SyncSettings() {
     setLoading(true);
     try {
       await api.sync.testConnection(buildConfig());
-      toast.success(
-        t("settings.sync.testSuccess", {
-          defaultValue: "Connection successful",
-        }),
-      );
+      toast.success(t("settings.sync.testSuccess"));
     } catch (e) {
-      toast.error(
-        t("settings.sync.testFailed", { defaultValue: "Connection failed" }),
-        {
-          description: e instanceof Error ? e.message : String(e),
-        },
-      );
+      toast.error(t("settings.sync.testFailed"), {
+        description: e instanceof Error ? e.message : String(e),
+      });
     } finally {
       setLoading(false);
     }
@@ -94,39 +112,22 @@ export function SyncSettings() {
 
   const handleConfigure = async () => {
     if (!syncPassword || syncPassword.length < 6) {
-      toast.error(
-        t("settings.sync.passwordTooShort", {
-          defaultValue: "Password must be at least 6 characters",
-        }),
-      );
+      toast.error(t("settings.sync.passwordTooShort"));
       return;
     }
     if (syncPassword !== confirmPassword) {
-      toast.error(
-        t("settings.sync.passwordMismatch", {
-          defaultValue: "Passwords do not match",
-        }),
-      );
+      toast.error(t("settings.sync.passwordMismatch"));
       return;
     }
     setLoading(true);
     try {
       await api.sync.configure(buildConfig(), syncPassword);
-      toast.success(
-        t("settings.sync.configured", {
-          defaultValue: "Sync configured and enabled",
-        }),
-      );
+      toast.success(t("settings.sync.configured"));
       loadStatus();
     } catch (e) {
-      toast.error(
-        t("settings.sync.configureFailed", {
-          defaultValue: "Failed to configure sync",
-        }),
-        {
-          description: e instanceof Error ? e.message : String(e),
-        },
-      );
+      toast.error(t("settings.sync.configureFailed"), {
+        description: e instanceof Error ? e.message : String(e),
+      });
     } finally {
       setLoading(false);
     }
@@ -134,29 +135,18 @@ export function SyncSettings() {
 
   const handleSyncNow = async () => {
     if (!syncPassword) {
-      toast.error(
-        t("settings.sync.enterPassword", {
-          defaultValue: "Enter your sync password",
-        }),
-      );
+      toast.error(t("settings.sync.enterPassword"));
       return;
     }
     setLoading(true);
     try {
       const result = await api.sync.syncNow(syncPassword);
-      toast.success(
-        t("settings.sync.synced", {
-          defaultValue: `Sync: ${result.action}`,
-        }),
-      );
+      toast.success(t("settings.sync.synced", { action: result.action }));
       loadStatus();
     } catch (e) {
-      toast.error(
-        t("settings.sync.syncFailed", { defaultValue: "Sync failed" }),
-        {
-          description: e instanceof Error ? e.message : String(e),
-        },
-      );
+      toast.error(t("settings.sync.syncFailed"), {
+        description: e instanceof Error ? e.message : String(e),
+      });
     } finally {
       setLoading(false);
     }
@@ -164,31 +154,18 @@ export function SyncSettings() {
 
   const handleForcePush = async () => {
     if (!syncPassword) {
-      toast.error(
-        t("settings.sync.enterPassword", {
-          defaultValue: "Enter your sync password",
-        }),
-      );
+      toast.error(t("settings.sync.enterPassword"));
       return;
     }
     setLoading(true);
     try {
       await api.sync.forcePush(syncPassword);
-      toast.success(
-        t("settings.sync.forcePushed", {
-          defaultValue: "Force pushed to remote",
-        }),
-      );
+      toast.success(t("settings.sync.forcePushed"));
       loadStatus();
     } catch (e) {
-      toast.error(
-        t("settings.sync.forcePushFailed", {
-          defaultValue: "Force push failed",
-        }),
-        {
-          description: e instanceof Error ? e.message : String(e),
-        },
-      );
+      toast.error(t("settings.sync.forcePushFailed"), {
+        description: e instanceof Error ? e.message : String(e),
+      });
     } finally {
       setLoading(false);
     }
@@ -196,31 +173,18 @@ export function SyncSettings() {
 
   const handleForcePull = async () => {
     if (!syncPassword) {
-      toast.error(
-        t("settings.sync.enterPassword", {
-          defaultValue: "Enter your sync password",
-        }),
-      );
+      toast.error(t("settings.sync.enterPassword"));
       return;
     }
     setLoading(true);
     try {
       await api.sync.forcePull(syncPassword);
-      toast.success(
-        t("settings.sync.forcePulled", {
-          defaultValue: "Force pulled from remote",
-        }),
-      );
+      toast.success(t("settings.sync.forcePulled"));
       loadStatus();
     } catch (e) {
-      toast.error(
-        t("settings.sync.forcePullFailed", {
-          defaultValue: "Force pull failed",
-        }),
-        {
-          description: e instanceof Error ? e.message : String(e),
-        },
-      );
+      toast.error(t("settings.sync.forcePullFailed"), {
+        description: e instanceof Error ? e.message : String(e),
+      });
     } finally {
       setLoading(false);
     }
@@ -230,19 +194,12 @@ export function SyncSettings() {
     setLoading(true);
     try {
       await api.sync.disable();
-      toast.success(
-        t("settings.sync.disabled", { defaultValue: "Sync disabled" }),
-      );
+      toast.success(t("settings.sync.disabled"));
       loadStatus();
     } catch (e) {
-      toast.error(
-        t("settings.sync.disableFailed", {
-          defaultValue: "Failed to disable sync",
-        }),
-        {
-          description: e instanceof Error ? e.message : String(e),
-        },
-      );
+      toast.error(t("settings.sync.disableFailed"), {
+        description: e instanceof Error ? e.message : String(e),
+      });
     } finally {
       setLoading(false);
     }
@@ -251,17 +208,12 @@ export function SyncSettings() {
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-medium flex items-center gap-2">
-        <Cloud className="w-5 h-5" />{" "}
-        {t("settings.sync.title", { defaultValue: "Config Sync" })}
+        <Cloud className="w-5 h-5" /> {t("settings.sync.title")}
       </h3>
 
       {/* Provider Configuration */}
       <div className="space-y-2 border rounded-md p-3">
-        <Label className="text-base">
-          {t("settings.sync.provider", {
-            defaultValue: "Sync Provider",
-          })}
-        </Label>
+        <Label className="text-base">{t("settings.sync.provider")}</Label>
         <Select
           value={providerType}
           onValueChange={(v) => setProviderType(v as SyncProviderType)}
@@ -332,11 +284,7 @@ export function SyncSettings() {
 
         <Separator className="my-2" />
 
-        <Label className="text-base">
-          {t("settings.sync.syncPassword", {
-            defaultValue: "Sync Password",
-          })}
-        </Label>
+        <Label className="text-base">{t("settings.sync.syncPassword")}</Label>
         <Input
           placeholder="Sync password (min 6 chars)"
           type="password"
@@ -356,14 +304,10 @@ export function SyncSettings() {
             onClick={handleTestConnection}
             disabled={loading}
           >
-            {t("settings.sync.testConnection", {
-              defaultValue: "Test Connection",
-            })}
+            {t("settings.sync.testConnection")}
           </Button>
           <Button onClick={handleConfigure} disabled={loading}>
-            {t("settings.sync.saveAndEnable", {
-              defaultValue: "Save & Enable",
-            })}
+            {t("settings.sync.saveAndEnable")}
           </Button>
           {status?.enabled && (
             <Button
@@ -372,7 +316,7 @@ export function SyncSettings() {
               disabled={loading}
             >
               <CloudOff className="w-4 h-4 mr-1" />
-              {t("settings.sync.disable", { defaultValue: "Disable" })}
+              {t("settings.sync.disable")}
             </Button>
           )}
         </div>
@@ -382,19 +326,21 @@ export function SyncSettings() {
       {status && (
         <div className="rounded-md border p-3 text-xs text-muted-foreground">
           <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground/90 mb-1">
-            {t("settings.sync.status", { defaultValue: "Sync Status" })}
+            {t("settings.sync.status")}
           </div>
           {status.deviceId && (
             <div>Device ID: {status.deviceId.slice(0, 8)}...</div>
           )}
-          {status.lastSyncAt && (
+          {status.lastSyncAt ? (
             <div>
-              {t("settings.sync.lastSync", { defaultValue: "Last sync" })}:{" "}
+              {t("settings.sync.lastSync")}:{" "}
               {new Date(status.lastSyncAt).toLocaleString()}
               {status.lastSyncResult === "success"
                 ? " ✓"
                 : ` ✗ ${status.lastSyncResult}`}
             </div>
+          ) : (
+            <div>{t("settings.sync.noSyncYet")}</div>
           )}
           {status.enabled && (
             <div className="mt-2 flex gap-2">
@@ -405,7 +351,7 @@ export function SyncSettings() {
                 disabled={loading}
               >
                 <RefreshCw className="w-3.5 h-3.5 mr-1" />
-                {t("settings.sync.syncNow", { defaultValue: "Sync Now" })}
+                {t("settings.sync.syncNow")}
               </Button>
               <Button
                 size="sm"
@@ -414,9 +360,7 @@ export function SyncSettings() {
                 disabled={loading}
               >
                 <Upload className="w-3.5 h-3.5 mr-1" />
-                {t("settings.sync.forcePush", {
-                  defaultValue: "Force Push",
-                })}
+                {t("settings.sync.forcePush")}
               </Button>
               <Button
                 size="sm"
@@ -425,9 +369,7 @@ export function SyncSettings() {
                 disabled={loading}
               >
                 <Download className="w-3.5 h-3.5 mr-1" />
-                {t("settings.sync.forcePull", {
-                  defaultValue: "Force Pull",
-                })}
+                {t("settings.sync.forcePull")}
               </Button>
             </div>
           )}

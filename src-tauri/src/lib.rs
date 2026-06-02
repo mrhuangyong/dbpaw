@@ -273,6 +273,7 @@ pub fn run() {
             commands::sync::sync_test_connection,
             commands::sync::sync_configure,
             commands::sync::sync_get_status,
+            commands::sync::sync_get_config,
             commands::sync::sync_now,
             commands::sync::sync_force_push,
             commands::sync::sync_force_pull,
